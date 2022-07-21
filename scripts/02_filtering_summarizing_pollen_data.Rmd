@@ -442,19 +442,16 @@ num_morphotypes_known_family/num_morphotypes_total
 ## Step 6: Export data
 ```{r step6}
 #Unsummarized data (intermediate step, not for analysis)
-
-#Pollen counts for each morphotype (per individual bird)
-write.csv(data_experiment, "../data/export/intermediate/Pollen_data_for_experiment.csv") 
-write.csv(data_normal_visitation, "../data/export/intermediate/Pollen_data_for_normal_visitation.csv") 
+write.csv(data_experiment, "../data/export/intermediate/Pollen_data_filtered_for_analysis.csv") 
 
 #Summarized data for analysis
 
 #Summarized morphotype richness
-write.csv(morphotypes_per_slide_experiment, "../data/export/for_analysis/Pollen_richness_experiment.csv") 
+write.csv(morphotypes_per_slide_experiment, "../data/export/for_analysis/Pollen_data_summarized_for_pp_richness.csv") 
 
 #Interaction frequencies between plants + hummingbirds (per replicate)
-write.csv(network_data_experiment, "../data/export/for_analysis/Pollen_network_data_experiment.csv")
+write.csv(network_data_experiment, "../data/export/for_analysis/Pollen_data_summarized_for_pp_networks.csv")
 
 #Interaction frequencies between plants + hummingbirds (meta-network)
-write.csv(metanetwork_data, "../data/export/for_analysis/Pollen_metanetwork_data_normal_visitation.csv") 
+write.csv(metanetwork_data, "../data/export/for_analysis/Pollen_data_summarized_for_metanetwork.csv") 
 ```
