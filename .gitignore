@@ -37,3 +37,9 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+# Data (at least until publication)
+/data/
+
+# Scripts in progress
+/scripts/in_progress/
