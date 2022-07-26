@@ -136,7 +136,7 @@ At this point it's also good to think ahead about the different datasets I'll ne
 Get files
 ```{r step4a}
 ## Source the summarizing function
-source("../scripts/helper_functions/Camera_data_summarizing_function.R")
+source("../scripts/helper_functions/Summarize_camera_data.R")
 
 ## Get scientific names for birds and plants (not just abbreviations). Will add after summarizing 
 bird_names <- read.csv("../data/import/Hummingbird_codes_species_list.csv") %>%
