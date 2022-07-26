@@ -19,10 +19,8 @@ In this dataset, pollen samples were collected from captured hummingbirds and mo
 Pollen slides were then reviewed and any pollen morphotypes were identified; this is the resulting dataset. At a minimum, there is one row per microscope slide. If >1 pollen types were observed on a slide, then there are additional rows per slide.
 ```{r step1}
 #1. Rename 'site' in anticipation of matching column name in camera data (patch = site)
-#2. Make a column for the year + patch combination (year_patch = replicate)
 pollen <- read.csv("../data/import/Pollen_data_2012-2018_20220714.csv") %>%
-  rename(patch = site) %>% 
-  mutate(year_patch = paste(year, patch, sep = "_")) 
+  rename(patch = site)
 ```
 
 ## Step 2: Process data
@@ -44,13 +42,13 @@ pollen02 <- pollen %>%
 ```{r step2b, message = FALSE}
 #Identify slides with multiple rows for the same pollen morphotype. This doesn't happen frequently, but rows need to be combined when it does.
 check01 <- pollen02 %>%
-  group_by(year, bird_id, day_bird_id, patch, control_treatment, exp_phase, date, slide_number, slide_id, band_number, colors, pollen_yes_or_no, bird_species, bird_sex, pollen_morphotype) %>%
+  group_by(year, bird_id, day_bird_id, patch, control_treatment, exp_phase, date, slide_number, slide_id, band_number, colors, pollen_yes_or_no, bird_species, bird_scientific_name, bird_sex, pollen_morphotype) %>%
   summarise(n = n()) %>%
   filter(n > 1)
 
 #Summarize pollen data so that there are not duplicate pollen morphotypes on a single slide (pollen sample)
 pollen03 <- pollen02 %>%
-  select(year, patch, year_patch, bird_id, day_bird_id, control_treatment, exp_phase, date, slide_number, slide_id, band_number, colors, pollen_yes_or_no, bird_species, bird_sex, contains("name"), pollen_morphotype, record_in_capture_data, collection_time, pollen_count) %>%
+  select(year, patch, bird_id, day_bird_id, control_treatment, exp_phase, date, slide_number, slide_id, band_number, colors, pollen_yes_or_no, bird_species, bird_scientific_name, bird_sex, contains("name"), pollen_morphotype, record_in_capture_data, collection_time, pollen_count) %>%
   group_by(across(!pollen_count)) %>%
   summarise(pollen_count = sum(as.numeric(pollen_count), na.rm = TRUE)) %>%
   ungroup()
@@ -227,14 +225,14 @@ Number of times a hummingbird carried the pollen of each plant species
 ```{r step3a, message = FALSE}
 #Interaction frequency = number of times a hummingbird carried the pollen of each plant species, i.e., number of slides containing a given pollen morphotype
 network_data_experiment <- data_experiment %>%
-  group_by(year, patch, year_patch, control_treatment, exp_phase, bird_species, pollen_morphotype) %>%
+  group_by(year, patch, control_treatment, exp_phase, bird_species, bird_scientific_name, pollen_morphotype) %>%
   summarise(num_slides = n()) %>% 
   ungroup()
 
 #This is similar to summary for experiment...EXCEPT that it is not summarized to level of pre/post. This is the "meta-network", i.e., summary network of sub-sampled sites/networks
 metanetwork_data <- data_experiment %>%
   filter(exp_phase == "capture_1") %>%
-  group_by(bird_species, pollen_morphotype) %>%
+  group_by(bird_species, bird_scientific_name, pollen_morphotype) %>%
   summarise(num_slides = n()) %>%
   ungroup()
 ```
@@ -244,8 +242,8 @@ metanetwork_data <- data_experiment %>%
 
 #First, calculate number of individuals analyzed of each species, at level of pre and post. This is basically the number of birds captured, if all birds had pollen collected/analyzed.
 number_slides_analyzed <- data_experiment %>%
-  distinct(year, patch, year_patch, control_treatment, exp_phase, bird_species, slide_number) %>%
-  group_by(year, patch, year_patch, control_treatment, exp_phase, bird_species) %>%
+  distinct(year, patch, control_treatment, exp_phase, bird_species, bird_scientific_name, slide_number) %>%
+  group_by(year, patch, control_treatment, exp_phase, bird_species, bird_scientific_name) %>%
   summarise(num_slides_analyzed = n()) %>%
   ungroup()
 
@@ -261,8 +259,8 @@ Number of pollen morphotypes per individual bird (richness of flower types per s
 ```{r step3b, message = FALSE}
 #Remember, slide = microscope slide = pollen sample
 morphotypes_per_slide_experiment <- data_experiment %>%
-  select(year, patch, control_treatment, exp_phase, date, slide_number, slide_id, bird_id, day_bird_id, band_number, bird_species, bird_sex, recap_y_n, pollen_yes_or_no, pollen_morphotype) %>%
-  group_by(year, patch, control_treatment, exp_phase, date, slide_number, slide_id, bird_id, day_bird_id, band_number, bird_species, bird_sex, recap_y_n, pollen_yes_or_no) %>%
+  select(year, patch, control_treatment, exp_phase, date, slide_number, slide_id, bird_id, day_bird_id, band_number, bird_species, bird_scientific_name, bird_sex, recap_y_n, pollen_yes_or_no, pollen_morphotype) %>%
+  group_by(year, patch, control_treatment, exp_phase, date, slide_number, slide_id, bird_id, day_bird_id, band_number, bird_species, bird_scientific_name, bird_sex, recap_y_n, pollen_yes_or_no) %>%
   summarise(num_morphotypes = n()) %>%
   ungroup() %>%
   arrange(num_morphotypes)
@@ -331,7 +329,7 @@ sum_slides_with_heto_pollen
 ```{r step4d}
 slides_greh_visa <- data_normal_visitation %>%
   filter(bird_group == "greh_visa") %>%
-  distinct(year, patch, control_treatment, exp_phase, bird_group, bird_species, slide_id, pollen_morphotype)
+  distinct(year, patch, control_treatment, exp_phase, bird_group, bird_species, bird_scientific_name, slide_id, pollen_morphotype)
 
 (num_slides_greh_visa = unique(slides_greh_visa$slide_id) %>% length())
 
