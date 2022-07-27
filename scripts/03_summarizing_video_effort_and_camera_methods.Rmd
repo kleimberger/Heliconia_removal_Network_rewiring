@@ -1,7 +1,6 @@
 ---
 title: "Summarizing video effort and camera methods"
-author: Kara Leimberger
-output: pdf_document
+output: html_document
 ---
 
 **Overall goals:**

@@ -1,7 +1,6 @@
 ---
 title: "Filtering and summarizing pollen data for analysis"
-author: Kara Leimberger
-output: pdf_document
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
