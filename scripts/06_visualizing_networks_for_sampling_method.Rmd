@@ -1,0 +1,124 @@
+---
+title: "Visualizing plant-hummingbird meta-networks"
+output: html_document
+---
+
+**Goal**
+
+Visualize overall network of plant-hummingbird interactions for this study system, across all sites and years studied, for each sampling method (pollen and camera)
+
+These interactions can be thought of 'normal' visitation patterns, unmanipulated by the Heliconia removal experiment, because the data used are only from the 'pre' period.
+
+```{r setup, include = FALSE}
+library(tidyr)
+library(dplyr)
+library(bipartite)
+```
+
+## Step 1: Get data
+
+These datasets have already been summarized in scripts 01-02
+
+**Pollen data**
+```{r step1a}
+#Rename Heliconia genus. Will hide all other plant species in the visualization, becaues the morphotype names will not mean much to anyone else
+pollen_data <- read.csv("../data/export/for_analysis/Pollen_data_summarized_for_metanetwork.csv") %>%
+  select(bird_scientific_name, pollen_morphotype, num_slides) %>%
+  mutate(pollen_morphotype = ifelse(pollen_morphotype == "HELICONIA01", "Heliconia", pollen_morphotype))
+
+#How many different pollen morphotypes? Note: this is lower than the total number detected ever (N = 45), because it excludes some of the data
+unique(pollen_data$pollen_morphotype) %>% length()
+
+#How many different bird species?
+unique(pollen_data$bird_scientific_name) %>% length()
+
+#Create matrix
+pollen_data_wide <- pollen_data %>%
+   pivot_wider(names_from = bird_scientific_name, values_from = num_slides, values_fill = list(num_slides = 0))
+
+pollen_matrix <- data.matrix(pollen_data_wide)[,-1]
+rownames(pollen_matrix) <- as.character(pollen_data_wide$pollen_morphotype)
+```
+
+**Camera data**
+```{r step1b}
+camera_data <- read.csv("../data/export/for_analysis/Camera_data_summarized_for_metanetwork.csv") %>%
+  select(bird_scientific_name, plant_scientific_name, sightings_per_hour) %>%
+  mutate(plant_scientific_name = ifelse(plant_scientific_name == "Drymonia sp.", "Drymonia", plant_scientific_name)) %>% 
+  mutate(plant_scientific_name = ifelse(plant_scientific_name == "Renealmia sp.", "Renealmia", plant_scientific_name)) %>% 
+  mutate(plant_scientific_name = ifelse(plant_scientific_name == "Heliconia tortuosa", "Heliconia", plant_scientific_name)) 
+
+#What species had no visitation?
+species_with_no_visits <- camera_data %>%
+  group_by(plant_scientific_name) %>%
+  summarise(max_rate = max(sightings_per_hour)) %>%
+  filter(max_rate == 0)
+
+#Remove these species
+camera_data_with_visits <- camera_data %>%
+  filter(!plant_scientific_name %in% species_with_no_visits$plant_scientific_name)
+  
+#How many different bird species?
+unique(camera_data_with_visits$bird_scientific_name) %>% length()
+
+#How many different plant species with visits?
+unique(camera_data_with_visits$plant_scientific_name) %>% length()
+
+#Create matrix
+camera_data_wide <- camera_data_with_visits %>%
+  pivot_wider(names_from = bird_scientific_name, values_from = sightings_per_hour, values_fill = list(sightings_per_hour = 0))
+
+camera_matrix <- data.matrix(camera_data_wide)[,-1]
+rownames(camera_matrix) <- as.character(camera_data_wide$plant_scientific_name)
+```
+
+## Step 2: Visualize pollen metanetwork
+```{r step2, fig.width=12, fig.height=10, results = 'hide'}
+#Italics
+graphics::par(font = 3)
+
+#1. Hide all labels except Heliconia by making them white
+#2. Emphasize green hermit and violet sabrewing
+#3. Emphasize Heliconia (highlight in red)
+
+bipartite::plotweb(pollen_matrix, method = "cca", arrow = "no",
+                   text.rot = 90, labsize = 2,
+                   text.low.col = ifelse(rownames(pollen_matrix) == "Heliconia", "black", "white"),
+                   text.high.col = ifelse(colnames(pollen_matrix) == "Phaethornis guy" | colnames(pollen_matrix) == "Campylopterus hemileucurus", "black", "grey40"),
+                   y.lim = c(-0.75, 2.75),
+                   x.lim = c(0, 1.75),
+                   col.low = ifelse(rownames(pollen_matrix) == "Heliconia", "#BA0022", "grey10"),
+                   bor.col.low = NA,
+                   col.interaction = t(ifelse(pollen_matrix[,] > 0 & rownames(pollen_matrix) == "Heliconia", "#BA0022", "grey80")),
+                   bor.col.interaction = t(ifelse(pollen_matrix[,] > 0 & rownames(pollen_matrix) == "Heliconia", "#BA0022", "black")))
+
+pollen_network <- recordPlot() #from package grDevices
+png("../results/network_visualizations/metanetworks/Pollen_metanetwork.png", width = 12, height = 10, res = 300, units = "in")
+pollen_network
+dev.off()
+```
+
+## Step 3: Visualize camera metanetwork
+```{r step3, fig.width=12, fig.height=10, results = 'hide'}
+#Italics
+graphics::par(font = 3)
+
+#1. Hide all labels except Heliconia by making them white
+#2. Emphasize green hermit and violet sabrewing
+#3. Emphasize Heliconia (highlight in red)
+bipartite::plotweb(camera_matrix, method = "cca", arrow = "no",
+                   text.rot = 90, labsize = 2,
+                   text.low.col = ifelse(rownames(camera_matrix) == "Heliconia", "black", "white"),
+                   text.high.col = ifelse(colnames(camera_matrix) == "Phaethornis guy" | colnames(camera_matrix) == "Campylopterus hemileucurus", "black", "grey40"),
+                   y.lim = c(-0.75, 2.75),
+                   x.lim = c(0, 1.75),
+                   col.low = ifelse(rownames(camera_matrix) == "Heliconia", "#BA0022", "grey10"),
+                   bor.col.low = NA,
+                   col.interaction = t(ifelse(camera_matrix[,] > 0 & rownames(camera_matrix) == "Heliconia", "#BA0022", "grey80")),
+                   bor.col.interaction = t(ifelse(camera_matrix[,] > 0 & rownames(camera_matrix) == "Heliconia", "#BA0022", "black")))
+
+camera_network <- recordPlot() #from package grDevices
+png("../results/network_visualizations/metanetworks/Camera_metanetwork.png", width = 12, height = 10, res = 300, units = "in")
+camera_network
+dev.off()
+```

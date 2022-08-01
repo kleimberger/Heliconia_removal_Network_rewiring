@@ -1,0 +1,414 @@
+---
+title: "Analyzing how sampling method affects estimates of specialization"
+output: html_document
+---
+
+**Overall questions:**
+
+1. How does sampling method (pollen vs. camera) affect the apparent level of ecological specialization between plants and hummingbirds? 
+
+- Predict that pollen networks are less specialized (more generalized) than visitation networks, because they sample a larger spatial extent.
+
+2. How well does one sampling method approximate the other sampling method?
+
+- Predict that correlation could be relatively low, given the inherent differences in how data were collected. Pollen networks are created from capturing hummingbirds over just a few hours but may include pollen grains from plants over a large spatial extent (depending on hummingbird movement and pollen carryover between flowers). Camera networks are created from observations across multiple entire days, but spatial extent is limited.
+
+**Approach**
+
+Analyze networks sampled from the "pre" period of the Heliconia removal experiment; these data can be considered to reflect 'normal' visitation, unaffected by our experiment. Limit this analysis to replicates that have networks representing both sampling methods. A replicate is a patch + year combination.
+
+1. Across replicates, does one sampling method lead to higher (or lower) specialization estimates than the other method?
+
+- MODEL: specialization metric ~ sampling method + (1|patch/year) *-> x3 specialization metrics*
+
+- DATA FORMAT: two rows per replicate (1 row pollen, 1 row camera)
+
+2. How correlated are pollen and visitation networks within a replicate? 
+
+- MODEL: specialization metric pollen ~ specialization metric camera + (1|patch) *-> x3 specialization metrics*
+
+- DATA FORMAT: one row per replicate (1 column pollen, 1 column camera)
+
+```{r setup, include = FALSE}
+#Packages for data wrangling
+library(dplyr)
+library(tidyr)
+library(purrr)
+
+#Packages for plotting
+library(ggplot2)
+library(ggpubr)
+
+#Packages for statistical modeling
+library(glmmTMB)
+library(DHARMa)
+library(performance)
+library(ggeffects)
+library(emmeans)
+
+#Set seed
+set.seed(1)
+```
+
+## Step 1: Get data
+
+```{r step1, message = FALSE}
+#Data are currently in long format (created in script 04). Will stick with this format for the initial analysis
+data <- read.csv("../data/export/for_analysis/Network_specialization_for_analysis.csv") %>%
+  filter(exp_phase == "pre") %>%
+  filter(bird_group == "all_spp") %>%
+  select(-unpaired, -X) %>%
+  arrange(metric) %>%
+  mutate(year_patch = paste(year, patch, sep = "_")) %>%
+  select(year, patch, year_patch, everything())
+
+#Remove unpaired networks by switching to wide form and then switching back
+#Here, unpaired network = missing either a pollen network or visitation network from same time replicate (patch + year)
+#Note: this is a different meaning than in script 04, where I flagged networks that didn't have a complete pre-to-post pair
+data_long <- data %>%
+  pivot_wider(names_from = "sampling_method", values_from = value) %>%
+  filter(!is.na(pollen) & !is.na(visitation)) %>%
+  pivot_longer(cols = c("pollen", "visitation"), names_to = "sampling_method")
+```
+
+## Step 2: Are camera networks more specialized than pollen networks?
+
+**Explore data**
+```{r step2a}
+#What are ranges of each response variable?
+source("../scripts/helper_functions/Calculate_basic_summary_stats.R")
+
+response_variable_sum <- data_long %>%
+  group_by(metric) %>%
+  calculate_basic_summary_stats(value)
+
+response_variable_sum
+
+#Are visitation networks more specialized than pollen networks, as predicted?
+#Make a plot to visually examine. Will also analyze statistically in next step
+h2_label <- expression(italic(H[2])*"'")
+d_label <- expression(italic(d)*"' (mean)")
+ssi_label <- expression("SSI~(mean)")
+
+#As density plot
+specialization_density_plot <- data_long %>%
+  mutate(sampling_method = factor(sampling_method, levels = c("pollen", "visitation"), labels = c("Pollen", "Visitation"))) %>%
+  mutate(metric = factor(metric, levels = c("H2", "d", "species.specificity.index"), labels = c(h2_label, d_label, ssi_label))) %>%
+  ggplot(., aes(x = value, fill = sampling_method)) +
+    facet_grid(.~metric, labeller = label_parsed) +
+    geom_density(alpha = 0.5) +
+    theme_bw(base_size = 18) +
+    theme(legend.position = "bottom") +
+    theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank()) +
+    scale_fill_grey(name = "") +
+    labs(x = "Value", y = "Density", color = "sampling_method", fill = "sampling_method") +
+    xlim(0,1) +
+    ylim(0,5)
+
+specialization_density_plot
+
+#As boxplot
+specialization_boxplot <- data_long %>%
+  mutate(sampling_method = factor(sampling_method, levels = c("pollen", "visitation"), labels = c("Pollen", "Visitation"))) %>%
+  mutate(metric = factor(metric, levels = c("H2", "d", "species.specificity.index"), labels = c(h2_label, d_label, ssi_label))) %>%
+  ggplot(aes(x = sampling_method, y = value, color = sampling_method)) +
+    geom_boxplot(width = 0.25, outlier.shape = NA) +
+    geom_jitter(alpha = 0.6, width = 0.1) +
+    facet_grid(.~metric, labeller = label_parsed) +
+    theme_bw(base_size = 18) +
+    theme(legend.position = "none") +
+    scale_color_manual(values = c("grey20", "grey40")) +
+    labs(x = "Sampling method", y = "Value")
+
+specialization_boxplot
+```
+
+Range of response variables is essentially a proportion, ranging from 0-1 (but in this case not including 1)
+
+Will use beta regression after transforming response variable to not include zero following [Cribari-Neto & Zeileis 2010] (https://www.jstatsoft.org/article/view/v034i02)
+
+**Transform response**
+```{r step2b}
+#For beta regression, transform response using method of Cribari-Neto & Zeileis 2010 to remove zeroes
+source("../scripts/helper_functions/Transform_proportion_for_betareg.R")
+
+data_long_transform <- data_long %>%
+  group_by(sampling_method, metric) %>%
+  mutate(value_transform = transform_proportion(value)) %>%
+  ungroup()
+```
+
+**Create models**
+```{r step2c, message = FALSE, fig.show = 'hide', results = 'hide'}
+#Ideal RE structure would be (1|patch/year), which is equivalent to (1|patch) + (1|year_patch)
+
+#BETA REGRESSION (GLMM)
+model1 <- glmmTMB(value_transform ~ sampling_method + (1|patch) + (1|year_patch), data = filter(data_long_transform, metric == "H2"), family = beta_family(link="logit"))
+model2 <- glmmTMB(value_transform ~ sampling_method + (1|patch) + (1|year_patch), data = filter(data_long_transform, metric == "d"), family = beta_family(link="logit"))
+model3 <- glmmTMB(value_transform ~ sampling_method + (1|patch) + (1|year_patch), data = filter(data_long_transform, metric == "species.specificity.index"), family = beta_family(link="logit"))
+
+simulateResiduals(model1, n = 1000) %>% plot()
+simulateResiduals(model2, n = 1000) %>% plot()
+simulateResiduals(model3, n = 1000) %>% plot()
+
+check_singularity(model1)
+check_singularity(model2)
+check_singularity(model3)
+
+#All assumptions look OK, except that DHARMa test for homoscedasticity seems a bit suspicious for model 2.
+#This can also be seen in boxplot created during exploration of raw data; i.e., more spread in pollen than visitation
+#These resources suggest that allowing for variable dispersion with dispformula would be an option:
+#https://stackoverflow.com/questions/52649486/accounting-for-heteroscedasticity-across-groups-in-a-glmmtmb-with-a-beta-distrib
+#https://github.com/florianhartig/DHARMa/issues/126
+
+model2 <- update(model2, dispformula = ~sampling_method)
+simulateResiduals(model2, n = 1000) %>% plot()
+
+#Looks better!
+#Sneak peek at results...
+summary(model1)
+summary(model2)
+summary(model3)
+
+ggeffects::ggpredict(model1) %>% plot(add.data = TRUE, jitter = c(0.15, 0))
+ggeffects::ggpredict(model2) %>% plot(add.data = TRUE, jitter = c(0.15, 0))
+ggeffects::ggpredict(model3) %>% plot(add.data = TRUE, jitter = c(0.15, 0))
+
+#Combine models into dataframe
+specialization_models <- tibble(model_number = c(1, 2, 3),
+                                metric = c("H2", "d", "species.specificity.index"),
+                                model = list(model1, model2, model3))
+```
+
+## Step 3: How correlated are metrics from networks sampled during same time period, but using different methods?
+
+**Explore data**
+```{r step3a, fig.show = 'hide'}
+#Convert to wide format 
+data_wide_transform <- data_long_transform %>%
+  pivot_wider(names_from = "sampling_method", values_from = c(value, value_transform), names_glue = "{sampling_method}_{.value}")
+
+#Explore raw data
+#Note: geom_smooth with linear model does not account for grouping structure within data, so just for exploration purposes, not inference!
+correlation_plot <- data_wide_transform %>%
+  mutate(metric = factor(metric, levels = c("H2", "d", "species.specificity.index"), labels = c(h2_label, d_label, ssi_label))) %>%
+  ggplot(aes(x = visitation_value, y = pollen_value)) +
+    geom_smooth(method = "lm", colour = "black") +
+    geom_point(alpha = 0.6) +
+    facet_grid(.~metric, labeller = label_parsed) +
+    theme_bw(base_size = 18) +
+    labs(x = "Visitation network", y = "Pollen network")
+
+correlation_plot
+
+#Looks like there is an outlier for SSI (2018_60). Will run with and without to see how sensitive results are to this value
+```
+
+**Create models**
+```{r step3b, message = FALSE, warning = FALSE, fig.show = 'hide', results = 'hide'}
+#BETA REGRESSION (GLMM)
+model4 <- glmmTMB(pollen_value_transform ~ visitation_value_transform + (1|patch) , data = filter(data_wide_transform, metric == "H2"), family = beta_family(link="logit"))
+
+model5 <- glmmTMB(pollen_value_transform ~ visitation_value_transform + (1|patch), data = filter(data_wide_transform, metric == "d"), family = beta_family(link="logit"))
+
+model6 <- glmmTMB(pollen_value_transform ~ visitation_value_transform + (1|patch), data = filter(data_wide_transform, metric == "species.specificity.index"), family = beta_family(link="logit"))
+
+model6_no_outlier <- glmmTMB(pollen_value_transform ~ visitation_value_transform + (1|patch), data = filter(data_wide_transform, metric == "species.specificity.index" & year_patch != "2018_60"), family = beta_family(link="logit"))
+
+simulateResiduals(model4, n = 1000) %>% plot()
+simulateResiduals(model5, n = 1000) %>% plot()
+simulateResiduals(model6, n = 1000) %>% plot()
+simulateResiduals(model6_no_outlier, n = 1000) %>% plot()
+
+check_singularity(model4)
+check_singularity(model5)
+check_singularity(model6)
+check_singularity(model6_no_outlier)
+
+#Sneak peek at results...in model 6, sign of of coefficient changes after removing outlier
+summary(model4)
+summary(model5)
+summary(model6)
+summary(model6_no_outlier)
+
+ggeffects::ggpredict(model4) %>% plot(add.data = TRUE, jitter = 0)
+ggeffects::ggpredict(model5) %>% plot(add.data = TRUE, jitter = 0)
+ggeffects::ggpredict(model6) %>% plot(add.data = TRUE, jitter = 0)
+ggeffects::ggpredict(model6_no_outlier) %>% plot(add.data = TRUE, jitter = 0)
+
+#Combine models into dataframe
+correlation_models <- tibble(model_number = c(4, 5, 6),
+                             metric = c("H2", "d", "species.specificity.index"),
+                             model = list(model4, model5, model6_no_outlier))
+
+#Calculate pseudo r-squared
+#Conditional R2= entire model, fixed AND random effects
+#Marginal R2 = fixed effects
+#Cannot get conditional pseudo-R2 for singular fits. Looks like I'd need to remove RE and run models outside of glmmTMB to get those calculations
+r2(model4)
+r2(model5)
+r2(model6)
+r2(model6_no_outlier)
+```
+
+## Step 4: Compile and plot results
+
+**Create model summaries, calculate confidence intervals, and tidy results into dataframe for export**
+```{r step4a}
+source("../scripts/helper_functions/Modeling_helper_functions.R")
+
+results <- specialization_models %>%
+  bind_rows(correlation_models) %>%
+  mutate(summary = map(model, summary),
+         summary_tidy = map(model, broom.mixed::tidy),
+         confint_wald = map(model, ~calculate_ci(., method_name = "wald")))
+
+#Extract model summaries
+results_tidy <- results %>%
+  select(model_number, metric, summary_tidy) %>%
+  unnest(c(summary_tidy))
+
+#Extract confidence intervals
+results_confint <- results %>%
+  select(model_number, metric, confint_wald) %>%
+  mutate(confint_df = map(confint_wald, as.data.frame)) %>% #CI as dataframe
+  mutate(confint_df = map(confint_df, ~tibble::rownames_to_column(., var = "term"))) %>%
+  unnest(cols = confint_df) %>%
+  rename(lowerCI = "2.5 %", upperCI = "97.5 %") %>%
+  select(-confint_wald, -Estimate)
+
+#Back-transform coefficients and confidence intervals to data scale from model scale
+results_tidy_confint <- results_tidy %>%
+  left_join(results_confint) %>%
+  mutate_at(vars(estimate, lowerCI, upperCI), .funs = list(exp = ~ifelse(effect == "fixed", exp(.), NA))) %>% 
+  mutate_at(vars(estimate, std.error, statistic, lowerCI, upperCI, estimate_exp, lowerCI_exp, upperCI_exp), ~round(., digits = 2)) %>%
+  mutate(pvalue_round = format.pval(pv = p.value, digits = 2, eps = 0.001)) %>%
+  select(model_number:term, estimate, lowerCI, upperCI, statistic, pvalue_round, pvalue = p.value, std_error = std.error, everything())
+```
+
+**For Question 1 (specialization ~ sampling method), calculate contrasts with emmeans**
+
+When interpreting these results, I want to be able to say "visitation networks are, on average, X times more specialized than pollen networks".
+
+However, beta regression is rather weird to interpret because the default link function is logit. Typically, back-transforming from logit links produces an odds ratio - but this doesn't really make sense because I'm not working with probabilities. The solution to this problem is to calculate ["risk ratios", aka "proportion ratios"](https://github.com/rvlenth/emmeans/issues/48) on the data scale.
+
+```{r step4b}
+#Function to calculate contrasts 
+calculate_contrasts <- function(model){
+  
+  emm = emmeans(model, specs = ~sampling_method) 
+  emm_log = regrid(emm, transform = "log")
+  #result = summary(contrast(emm_log, interaction = "revpairwise"), type = "response") #Without CI, with p-value
+  result = confint(contrast(emm_log, interaction = "revpairwise"), type = "response") #With CI, without p-value
+  
+  return(result)
+  
+}
+
+#Calculate estimated marginal means (i.e., predictions) using ggeffects and contrasts using emmeans
+specialization_predictions_contrasts <- specialization_models %>%
+  mutate(ggeffects = map(model, ~ggpredict(., terms = c("sampling_method"), back.transform = TRUE))) %>%
+  mutate(emm_contrasts = map(model, ~calculate_contrasts(.)))
+
+#Extract estimated marginal means
+specialization_predictions <- specialization_predictions_contrasts %>%
+  select(model_number, metric, ggeffects) %>% 
+  unnest(cols = c(ggeffects))
+
+#Extract contrasts
+specialization_contrasts <- specialization_predictions_contrasts %>%
+  select(model_number, metric, emm_contrasts) %>% 
+  unnest(cols = c(emm_contrasts)) %>%
+  select(model_number, metric, ratio, lowerCI = lower.CL, upperCI = upper.CL, std_error = SE) %>%
+  mutate_if(is.numeric, ~round(., digits = 2))
+```
+
+**For Question 1 (specialization ~ sampling method), make plots for publication**
+```{r step4c, fig.width=4, fig.height=11}
+#Function to make plot
+make_specialization_plot <- function(ggeffects, yvar){
+  
+  plot <- ggeffects %>%
+            mutate(x = factor(x, levels = c("pollen", "visitation"), labels = c("Pollen", "Visitation"))) %>%
+            ggplot(data = ., aes(x = x, y = predicted)) + 
+              geom_point(aes(x = x, y = predicted), position = position_dodge(width = 0.25), size = 4, shape = 16) +
+              geom_errorbar(aes(ymin = conf.low, ymax = conf.high), position = position_dodge(width = 0.25), width = 0.0, size = 1) +
+              theme_bw(base_size = 20) +
+              theme(legend.position="none",
+                    legend.direction = "horizontal",
+                    panel.grid.major = element_blank(),
+                    panel.grid.minor = element_blank(),
+                    plot.title = element_text(hjust = 0.5)) +
+              labs(x="") +
+              scale_y_continuous(limits = c(0, 0.8))
+    
+  
+  if(yvar == "H2"){plot <- plot + labs(y = expression(atop("Network specialization", paste("("*italic(H[2])*"')"))))}
+  if(yvar == "d"){plot <- plot + labs(y = expression(atop("Species specialization", paste("(mean "*italic(d)*"')"))))}
+  if(yvar == "species.specificity.index"){plot <- plot + labs(y = expression(atop("Species specialization", paste("(mean SSI)"))))}
+
+  return(plot)
+  
+}
+
+specialization_results_plots <- specialization_predictions_contrasts %>%
+  mutate(predicted_plot = map2(ggeffects, metric, ~make_specialization_plot(ggeffects = .x, yvar = .y)))
+
+#Combine into one plot...
+specialization_results_multiplot <- ggarrange(plotlist = specialization_results_plots$predicted_plot, nrow = 3)
+specialization_results_multiplot
+```
+
+**For Question 2 (pollen ~ visitation), make plots for publication**
+```{r step4d, fig.width=4, fig.height=11}
+#Calculate predictions using ggeffects + add in data points (minus outlier)
+correlation_predictions <- correlation_models %>%
+  mutate(ggeffects = map(model, ~ggpredict(., terms = "visitation_value_transform [all]", back.transform = TRUE))) %>%
+  mutate(data = map(metric, ~filter(data_wide_transform, metric == .)))
+
+#Function to make plot
+make_correlation_plot <- function(ggeffects, data, yvar){
+  
+  #Flag outliers 
+  data <- data %>%
+    mutate(outlier = ifelse(yvar == "species.specificity.index" & year_patch == "2018_60", "yes", "no"))
+  
+  plot <- ggplot(data = ggeffects, aes(x = x, y = predicted)) + 
+    geom_line(size = 1) +
+    geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.25) +
+    geom_point(data = data, aes(x = visitation_value_transform, y = pollen_value_transform, shape = outlier)) +
+    theme_bw(base_size = 20) +
+    theme(legend.position = "none", panel.grid.major = element_blank(), panel.grid.minor = element_blank(), strip.background = element_rect(fill="white")) + 
+    scale_y_continuous(labels = scales::number_format(accuracy = 0.1, decimal.mark = '.')) +
+    scale_shape_manual(values = c(19, 8)) +
+    labs(x = "Visitation network", y = "Pollen network") +
+    ylim(0,1) +
+    xlim(0,1)
+
+  return(plot)
+  
+}
+
+correlation_results_plots <- correlation_predictions %>%
+  mutate(predicted_plot = pmap(list(ggeffects, data, metric), ~make_correlation_plot(ggeffects = ..1, data = ..2, yvar = ..3)))
+
+#Combine into one plot...
+correlation_results_multiplot <- ggarrange(plotlist = correlation_results_plots$predicted_plot, nrow = 3)
+correlation_results_multiplot
+```
+
+## Step 5: Export results
+```{r step5}
+#Summary tables (Q1 + Q2)
+write.csv(results_tidy_confint, "../results/sampling_method/tables/Summary_tables.csv") #model summaries
+
+#Q1
+write.csv(specialization_predictions, "../results/sampling_method/tables/Specialization_results_emmeans.csv")
+write.csv(specialization_contrasts, "../results/sampling_method/tables/Specialization_results_contrasts.csv") 
+
+ggsave("../results/sampling_method/figures/Specialization_density_plot.png", specialization_density_plot, dpi = 300, units = "in", width = 9, height = 5)
+ggsave("../results/sampling_method/figures/Specialization_results_multiplot.png", specialization_results_multiplot, dpi = 300, units = "in", width = 4, height = 11)
+
+#Q2
+ggsave("../results/sampling_method/figures/Correlation_results_multipplot.png", correlation_results_multiplot, dpi = 300, units = "in", width = 4, height = 11)
+```
