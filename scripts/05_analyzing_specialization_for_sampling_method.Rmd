@@ -306,17 +306,17 @@ calculate_contrasts <- function(model){
 }
 
 #Calculate estimated marginal means (i.e., predictions) using ggeffects and contrasts using emmeans
-specialization_predictions_contrasts <- specialization_models %>%
-  mutate(ggeffects = map(model, ~ggpredict(., terms = c("sampling_method"), back.transform = TRUE))) %>%
+specialization_emmeans_contrasts <- specialization_models %>%
+  mutate(ggeffects = map(model, ~ggemmeans(., terms = c("sampling_method"), back.transform = TRUE))) %>%
   mutate(emm_contrasts = map(model, ~calculate_contrasts(.)))
 
 #Extract estimated marginal means
-specialization_predictions <- specialization_predictions_contrasts %>%
+specialization_emmeans <- specialization_emmeans_contrasts %>%
   select(model_number, metric, ggeffects) %>% 
   unnest(cols = c(ggeffects))
 
 #Extract contrasts
-specialization_contrasts <- specialization_predictions_contrasts %>%
+specialization_contrasts <- specialization_emmeans_contrasts %>%
   select(model_number, metric, emm_contrasts) %>% 
   unnest(cols = c(emm_contrasts)) %>%
   select(model_number, metric, ratio, lowerCI = lower.CL, upperCI = upper.CL, std_error = SE) %>%
@@ -351,7 +351,7 @@ make_specialization_plot <- function(ggeffects, yvar){
   
 }
 
-specialization_results_plots <- specialization_predictions_contrasts %>%
+specialization_results_plots <- specialization_emmeans_contrasts %>%
   mutate(predicted_plot = map2(ggeffects, metric, ~make_specialization_plot(ggeffects = .x, yvar = .y)))
 
 #Combine into one plot...
@@ -400,15 +400,15 @@ correlation_results_multiplot
 ## Step 5: Export results
 ```{r step5}
 #Summary tables (Q1 + Q2)
-write.csv(results_tidy_confint, "../results/sampling_method/tables/Summary_tables.csv") #model summaries
+write.csv(results_tidy_confint, "../results/analyses_sampling_method/tables/Summary_tables.csv") #model summaries
 
 #Q1
-write.csv(specialization_predictions, "../results/sampling_method/tables/Specialization_results_emmeans.csv")
-write.csv(specialization_contrasts, "../results/sampling_method/tables/Specialization_results_contrasts.csv") 
+write.csv(specialization_emmeans, "../results/analyses_sampling_method/tables/Specialization_results_emmeans.csv")
+write.csv(specialization_contrasts, "../results/analyses_sampling_method/tables/Specialization_results_contrasts.csv") 
 
-ggsave("../results/sampling_method/figures/Specialization_density_plot.png", specialization_density_plot, dpi = 300, units = "in", width = 9, height = 5)
-ggsave("../results/sampling_method/figures/Specialization_results_multiplot.png", specialization_results_multiplot, dpi = 300, units = "in", width = 4, height = 11)
+ggsave("../results/analyses_sampling_method/figures/Specialization_density_plot.png", specialization_density_plot, dpi = 300, units = "in", width = 9, height = 5)
+ggsave("../results/analyses_sampling_method/figures/Specialization_results_multiplot.png", specialization_results_multiplot, dpi = 300, units = "in", width = 4, height = 11)
 
 #Q2
-ggsave("../results/sampling_method/figures/Correlation_results_multipplot.png", correlation_results_multiplot, dpi = 300, units = "in", width = 4, height = 11)
+ggsave("../results/analyses_sampling_method/figures/Correlation_results_multipplot.png", correlation_results_multiplot, dpi = 300, units = "in", width = 4, height = 11)
 ```
