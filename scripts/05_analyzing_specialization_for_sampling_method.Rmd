@@ -400,7 +400,7 @@ correlation_results_multiplot
 ## Step 5: Export results
 ```{r step5}
 #Summary tables (Q1 + Q2)
-write.csv(results_tidy_confint, "../results/analyses_sampling_method/tables/Summary_tables.csv") #model summaries
+write.csv(results_tidy_confint, "../results/analyses_sampling_method/tables/Sampling_method_results_summary_tables.csv") #model summaries
 
 #Q1
 write.csv(specialization_emmeans, "../results/analyses_sampling_method/tables/Specialization_results_emmeans.csv")
@@ -410,5 +410,5 @@ ggsave("../results/analyses_sampling_method/figures/Specialization_density_plot.
 ggsave("../results/analyses_sampling_method/figures/Specialization_results_multiplot.png", specialization_results_multiplot, dpi = 300, units = "in", width = 4, height = 11)
 
 #Q2
-ggsave("../results/analyses_sampling_method/figures/Correlation_results_multipplot.png", correlation_results_multiplot, dpi = 300, units = "in", width = 4, height = 11)
+ggsave("../results/analyses_sampling_method/figures/Correlation_results_multiplot.png", correlation_results_multiplot, dpi = 300, units = "in", width = 4, height = 11)
 ```

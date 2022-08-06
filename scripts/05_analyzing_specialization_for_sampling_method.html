@@ -759,7 +759,7 @@ correlation_results_multiplot</code></pre>
 <div id="step-5-export-results" class="section level2">
 <h2>Step 5: Export results</h2>
 <pre class="r"><code>#Summary tables (Q1 + Q2)
-write.csv(results_tidy_confint, &quot;../results/analyses_sampling_method/tables/Summary_tables.csv&quot;) #model summaries
+write.csv(results_tidy_confint, &quot;../results/analyses_sampling_method/tables/Sampling_method_results_summary_tables.csv&quot;) #model summaries
 
 #Q1
 write.csv(specialization_emmeans, &quot;../results/analyses_sampling_method/tables/Specialization_results_emmeans.csv&quot;)
@@ -769,7 +769,7 @@ ggsave(&quot;../results/analyses_sampling_method/figures/Specialization_density_
 ggsave(&quot;../results/analyses_sampling_method/figures/Specialization_results_multiplot.png&quot;, specialization_results_multiplot, dpi = 300, units = &quot;in&quot;, width = 4, height = 11)
 
 #Q2
-ggsave(&quot;../results/analyses_sampling_method/figures/Correlation_results_multipplot.png&quot;, correlation_results_multiplot, dpi = 300, units = &quot;in&quot;, width = 4, height = 11)</code></pre>
+ggsave(&quot;../results/analyses_sampling_method/figures/Correlation_results_multiplot.png&quot;, correlation_results_multiplot, dpi = 300, units = &quot;in&quot;, width = 4, height = 11)</code></pre>
 </div>
 
 
