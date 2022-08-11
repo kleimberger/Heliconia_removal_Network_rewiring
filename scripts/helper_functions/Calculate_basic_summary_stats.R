@@ -7,7 +7,8 @@ calculate_basic_summary_stats <- function(data, variable){
                      max = max({{ variable }}, na.rm = TRUE),
                      mean = mean({{ variable }}, na.rm = TRUE),
                      sd = sd({{ variable }},  na.rm = TRUE),
-                     median = median({{ variable }}, na.rm = TRUE))
+                     median = median({{ variable }}, na.rm = TRUE),
+                     n = sum(!is.na({{ variable }})))
   
   return(sum)
   
