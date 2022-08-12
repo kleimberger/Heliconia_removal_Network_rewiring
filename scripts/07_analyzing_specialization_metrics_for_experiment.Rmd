@@ -176,7 +176,7 @@ subset_data <- function(dataset, analysis, bird_group, yvar){
   
 }
 
-#Functions to create models
+#Function to create models
 #Default optimizer is nlminb; if convergence issues try alternative optimizer:
 #control=glmmTMBControl(optimizer=optim, optArgs=list(method="BFGS"))
 #If use eval(bquote(.(stuff you don't want quoted))), won't have garbled formula
@@ -250,9 +250,9 @@ assumption_checks_network <- models_network %>%
          dharma_plot = map(dharma_plot_safely, get_result)) %>%
   mutate(dharma_xvar_plot = pmap(list(xvar_table, data, dharma_object, title, subtitle),
                                  ~make_dharma_xvar_plot(predictor_table = ..1, dataset = ..2, dharma_object = ..3, plot_title = ..4, plot_subtitle = ..5))) %>%
-  mutate(plotname1 = paste("re_diagnostics_", model_id, ".png", sep = "")) %>%
-  mutate(plotname2 = paste("dharma_overall_diagnostics_", model_id, ".png", sep = "")) %>%
-  mutate(plotname3 = paste("dharma_xvar_diagnostics_", model_id, ".png", sep = ""))
+  mutate(plotname1 = paste("re_diagnostics_network_", model_number, ".png", sep = "")) %>%
+  mutate(plotname2 = paste("dharma_overall_diagnostics_network_", model_number, ".png", sep = "")) %>%
+  mutate(plotname3 = paste("dharma_xvar_diagnostics_network_", model_number, ".png", sep = ""))
          
 #For some reason, this first model throws an error when making the DHARMa plot: x missing value where TRUE/FALSE needed
 #The error seems to be for quantile regression that gives the lines on the resid vs. predicted plot
@@ -260,13 +260,13 @@ assumption_checks_network <- models_network %>%
 # models_network$model[[5]] %>% DHARMa::simulateResiduals() %>% plot()
 
 #Export diagnostic plots because they load very slowly in RStudio
-setwd("../results/analyses_experiment/assumption_checks/network_species_specialization")
-walk2(assumption_checks_network$plotname1, assumption_checks_network$re_plot, ~ggsave(filename = .x, plot = .y, height = 11.5, width = 15, units = "in", bg = "white"))
-walk2(assumption_checks_network$plotname3, assumption_checks_network$dharma_xvar_plot, ~ggsave(filename = .x, plot = .y, height = 11.5, width = 15, units = "in"))
+path_name <- c("../results/analyses_experiment/specialization/assumption_checks")
+walk2(assumption_checks_network$plotname1, assumption_checks_network$re_plot, ~ggsave(filename = .x, plot = .y, path = path_name, height = 11.5, width = 15, units = "in", bg = "white"))
+walk2(assumption_checks_network$plotname3, assumption_checks_network$dharma_xvar_plot, ~ggsave(filename = .x, plot = .y, path = path_name, height = 11.5, width = 15, units = "in"))
 
 #Remove problematic plot before trying to export DHARMa plots
 assumption_checks_network <- assumption_checks_network %>% filter(model_number != "5")
-walk2(assumption_checks_network$plotname2, assumption_checks_network$dharma_plot, ~ggsave(filename = .x, plot = .y, height = 11.5, width = 15, units = "in"))
+walk2(assumption_checks_network$plotname2, assumption_checks_network$dharma_plot, ~ggsave(filename = .x, plot = .y, path = path_name, height = 11.5, width = 15, units = "in"))
 ```
 
 **Create model summaries, calculate confidence intervals, and tidy results into dataframe for export**
@@ -473,15 +473,15 @@ assumption_checks_richness <- models_richness %>%
          dharma_plot = map(dharma_plot_safely, get_result)) %>%
   mutate(dharma_xvar_plot = pmap(list(xvar_table, data, dharma_object, title, subtitle),
                                  ~make_dharma_xvar_plot(predictor_table = ..1, dataset = ..2, dharma_object = ..3, plot_title = ..4, plot_subtitle = ..5))) %>%
-  mutate(plotname1 = paste("re_diagnostics_", model_id, ".png", sep = "")) %>%
-  mutate(plotname2 = paste("dharma_overall_diagnostics_", model_id, ".png", sep = "")) %>%
-  mutate(plotname3 = paste("dharma_xvar_diagnostics_", model_id, ".png", sep = ""))
+  mutate(plotname1 = paste("re_diagnostics_individual_", model_number, ".png", sep = "")) %>%
+  mutate(plotname2 = paste("dharma_overall_diagnostics_individual_", model_number, ".png", sep = "")) %>%
+  mutate(plotname3 = paste("dharma_xvar_diagnostics_individual_", model_number, ".png", sep = ""))
         
 #Export diagnostic plots because they load very slowly in RStudio
-setwd("../results/analyses_experiment/assumption_checks/individual_specialization")
-walk2(assumption_checks_richness$plotname1, assumption_checks_richness$re_plot, ~ggsave(filename = .x, plot = .y, height = 11.5, width = 15, units = "in", bg = "white"))
-walk2(assumption_checks_richness$plotname2, assumption_checks_richness$dharma_plot, ~ggsave(filename = .x, plot = .y, height = 11.5, width = 15, units = "in"))
-walk2(assumption_checks_richness$plotname3, assumption_checks_richness$dharma_xvar_plot, ~ggsave(filename = .x, plot = .y, height = 11.5, width = 15, units = "in"))
+path_name <- c("../results/analyses_experiment/specialization/assumption_checks")
+walk2(assumption_checks_richness$plotname1, assumption_checks_richness$re_plot, ~ggsave(filename = .x, plot = .y, path = path_name, height = 11.5, width = 15, units = "in", bg = "white"))
+walk2(assumption_checks_richness$plotname2, assumption_checks_richness$dharma_plot, ~ggsave(filename = .x, plot = .y, path = path_name, height = 11.5, width = 15, units = "in"))
+walk2(assumption_checks_richness$plotname3, assumption_checks_richness$dharma_xvar_plot, ~ggsave(filename = .x, plot = .y, path = path_name, height = 11.5, width = 15, units = "in"))
 ```
 
 **Extract results**
@@ -624,28 +624,34 @@ contrast_multiplot_all_analyses
 
 ## Step 6: Export results 
 ```{r step6, message = FALSE, warning = FALSE}
-#Summary tables (NETWORK METRICS)
-write.csv(results_tidy_confint_network, "../results/analyses_experiment/tables/Network_results_summary_tables.csv")
-write.csv(sample_size_network, "../results/analyses_experiment/tables/Network_results_sample_size_summary.csv")
-write.csv(emmeans_network, "../results/analyses_experiment/tables/Network_results_emmeans.csv")
-write.csv(contrasts_network, "../results/analyses_experiment/tables/Network_results_contrasts.csv")
-write.csv(contrasts_x2_network, "../results/analyses_experiment/tables/Network_results_contrast_of_contrasts.csv")
+#SUMMARY TABLES
+path_name <- c("../results/analyses_experiment/specialization/tables")
 
-#Plots (NETWORK METRICS)
-ggsave("../results/analyses_experiment/figures/Interaction_multiplot_network_all_species.png", interaction_multiplot_network_all, dpi = 300, units = "in", width = 9, height = 12, bg = "white")
-ggsave("../results/analyses_experiment/figures/Interaction_multiplot_network_greh_visa.png", interaction_multiplot_network_gv, dpi = 300, units = "in", width = 9, height = 9, bg = "white")
-ggsave("../results/analyses_experiment/figures/Contrast_multiplot_network.png", contrast_multiplot_network, dpi = 300, units = "in", width = 13, height = 5, bg = "white")
+#Network
+write.csv(results_tidy_confint_network, file.path(path_name, "Network_results_summary_tables.csv"))
+write.csv(sample_size_network, file.path(path_name, "Network_results_sample_size_summary.csv"))
+write.csv(emmeans_network, file.path(path_name,"Network_results_emmeans.csv"))
+write.csv(contrasts_network, file.path(path_name, "Network_results_contrasts.csv"))
+write.csv(contrasts_x2_network, file.path(path_name,"Network_results_contrast_of_contrasts.csv"))
 
-#Summary tables (INDIVIDUAL SPECIALIZATION)
-write.csv(results_tidy_confint_richness, "../results/analyses_experiment/tables/Individual_results_summary_tables.csv")
-write.csv(sample_size_richness, "../results/analyses_experiment/tables/Individual_results_sample_size_summary.csv")
-write.csv(emmeans_richness, "../results/analyses_experiment/tables/Individual_results_emmeans.csv")
-write.csv(contrasts_richness, "../results/analyses_experiment/tables/Individual_results_contrasts.csv")
-write.csv(contrasts_x2_richness, "../results/analyses_experiment/tables/Individual_results_contrast_of_contrasts.csv")
+#Individual
+write.csv(results_tidy_confint_richness, file.path(path_name, "Individual_results_summary_tables.csv"))
+write.csv(sample_size_richness, file.path(path_name, "Individual_results_sample_size_summary.csv"))
+write.csv(emmeans_richness, file.path(path_name, "Individual_results_emmeans.csv"))
+write.csv(contrasts_richness, file.path(path_name, "Individual_results_contrasts.csv"))
+write.csv(contrasts_x2_richness, file.path(path_name, "Individual_results_contrast_of_contrasts.csv"))
 
-#Plots (INDIVIDUAL SPECIALIZATION)
-ggsave("../results/analyses_experiment/figures/Interaction_multiplot_individual.png", interaction_multiplot_richness, dpi = 300, units = "in", width = 9, height = 9, bg = "white")
+#FIGURES
+path_name <- c("../results/analyses_experiment/specialization/figures")
 
-#Plots (NETWORK METRICS + INDIVIDUAL SPECIALIZATION)
-ggsave("../results/analyses_experiment/figures/Contrast_multiplot_all_analyses.png", contrast_multiplot_all_analyses, dpi = 300, units = "in", width = 9, height = 12, bg = "white")
+#Network
+ggsave(file.path(path_name, "Network_interaction_multiplot_all_species.png"), interaction_multiplot_network_all, dpi = 300, units = "in", width = 9, height = 12, bg = "white")
+ggsave(file.path(path_name, "Network_interaction_multiplot_greh_visa.png"), interaction_multiplot_network_gv, dpi = 300, units = "in", width = 9, height = 9, bg = "white")
+ggsave(file.path(path_name, "Network_contrast_multiplot.png"), contrast_multiplot_network, dpi = 300, units = "in", width = 13, height = 5, bg = "white")
+
+#Individual
+ggsave(file.path(path_name, "Individual_interaction_multiplot.png"), interaction_multiplot_richness, dpi = 300, units = "in", width = 9, height = 9, bg = "white")
+
+#All analyses
+ggsave(file.path(path_name, "Network_and_individual_contrast_multiplot.png"), contrast_multiplot_all_analyses, dpi = 300, units = "in", width = 9, height = 12, bg = "white")
 ```

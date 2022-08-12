@@ -21,8 +21,6 @@ I conclude that:
 2. For pollen networks, pre-to-post sampling completeness was lower in treatment replicates than in control replicates, introducing systematic sampling bias. **Therefore, for the analysis of interaction turnover, I will only analyze visitation networks.**
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-
 library(dplyr)
 library(tidyr)
 library(ggplot2)
@@ -149,8 +147,9 @@ completeness_contrasts <- tibble(model_number = c(1, 2, 3),
 
 ## Step 5: Export results
 ```{r step5}
-write.csv(completeness_sum, "../results/analyses_experiment/tables/Sampling_completeness_summary.csv")
-write.csv(completeness_contrasts, "../results/analyses_experiment/tables/Sampling_completeness_contrasts.csv")
-ggsave("../results/analyses_experiment/figures/Sampling_completeness_plot.png", plot = chao1_plot, width = 7, height = 7, units = "in", dpi = 300)
+path_name <- c("../results/analyses_experiment/interaction_turnover")
+write.csv(completeness_sum, file.path(path_name, "tables/Sampling_completeness_summary.csv"))
+write.csv(completeness_contrasts, file.path(path_name, "tables/Sampling_completeness_contrasts.csv"))
+ggsave(file.path(path_name, "figures/Sampling_completeness_plot.png"), plot = chao1_plot, width = 7, height = 7, units = "in", dpi = 300)
 ```
 

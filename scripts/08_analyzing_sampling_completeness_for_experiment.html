@@ -514,9 +514,10 @@ completeness_contrasts &lt;- tibble(model_number = c(1, 2, 3),
 </div>
 <div id="step-5-export-results" class="section level2">
 <h2>Step 5: Export results</h2>
-<pre class="r"><code>write.csv(completeness_sum, &quot;../results/analyses_experiment/tables/Sampling_completeness_summary.csv&quot;)
-write.csv(completeness_contrasts, &quot;../results/analyses_experiment/tables/Sampling_completeness_contrasts.csv&quot;)
-ggsave(&quot;../results/analyses_experiment/figures/Sampling_completeness_plot.png&quot;, plot = chao1_plot, width = 7, height = 7, units = &quot;in&quot;, dpi = 300)</code></pre>
+<pre class="r"><code>path_name &lt;- c(&quot;../results/analyses_experiment/interaction_turnover&quot;)
+write.csv(completeness_sum, file.path(path_name, &quot;tables/Sampling_completeness_summary.csv&quot;))
+write.csv(completeness_contrasts, file.path(path_name, &quot;tables/Sampling_completeness_contrasts.csv&quot;))
+ggsave(file.path(path_name, &quot;figures/Sampling_completeness_plot.png&quot;), plot = chao1_plot, width = 7, height = 7, units = &quot;in&quot;, dpi = 300)</code></pre>
 </div>
 
 
