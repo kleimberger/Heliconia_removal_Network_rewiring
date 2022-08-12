@@ -1,0 +1,264 @@
+---
+title: "Analyzing interaction turnover (network dissimilarity)"
+output: html_document
+---
+
+**Goal**
+
+Analyze whether experimental treatment of *Heliconia* removal resulted in the amount of pre-to-post interaction turnover, i.e., changes in interaction identity due to gain/loss of species OR reshuffling of interactions among species present throughout experiment.
+
+Hypothesis: If hummingbird rewired to use alternative (non-*Heliconia*) resources, then there should be higher levels of network dissimilarity in treatment replicates relative to control replicates.
+
+**Approach**
+
+Using the 'betalinkr' function of the 'bipartite' R package, examine overall network dissimilarity and its two additive subcomponents: changes in interactions due to species gain/loss and changes in interactions among species present during both experimental periods (pre and post).
+
+That is, 
+
+    INTERACTION TURNOVER (total) = SPECIES TURNOVER + INTERACTION RESHUFFLING 
+
+Or, using the abbreviations of the package creators, 
+
+    WN (whole network) = ST (species turnover) + OS (only shared, aka 'rewiring')
+    
+*Note that 'rewiring' in the context of the betalinkr function (rearrangement of interactions, not including gaining/losing species) is a more specific term than 'rewiring' in the general sense (meant to mean behavioral flexibility, which often does include gaining/losing species).*
+
+Other notes:
+
+- Due to potential differences in pre-to-post sampling completeness for pollen networks (script 08), will only analyze turnover for the visitation networks
+- Will focus on binary versions of network dissimilarity, due to ease of interpretation (e.g., presence/absence of a given interaction or species). However, I will still analyze  quantitative versions of metrics for the supplement.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(ggplot2)
+library(ggpubr)
+library(glmmTMB)
+library(DHARMa)
+library(emmeans)
+library(ggeffects)
+```
+
+## Step 1: Get data
+
+Network dissimilarity has already been calculated (see script 04)
+```{r step1, message = FALSE}
+#1. Get data
+#2. Filter to visitation data, not pollen networks
+#3. Remove outliers for sampling completeness identified in previous script
+#4. Convert to long-form, rather than having one column per metric
+turnover <- read.csv("../data/export/for_analysis/Network_dissimilarity_for_analysis.csv") %>%
+  select(-X, -S, -OS.poisot) %>%
+  mutate(year_patch = paste(year, patch, sep = "_")) %>%
+  filter(sampling_method == "visitation") %>%
+  filter(year_patch != "2017_130") %>%
+  filter(year_patch != "2017_24") %>%
+  pivot_longer(cols = c(WN, ST, OS), names_to = "metric", values_to = "value")
+
+#Get functions
+source("../scripts/helper_functions/Transform_proportion_for_betareg.R")
+source("../scripts/helper_functions/Modeling_helper_functions.R")
+source("../scripts/helper_functions/Plotting_helper_functions.R")
+source("../scripts/helper_functions/Extract_data_from_safely_and_quietly_lists.R")
+
+#Transform response variable to fall between 0 and 1 so can use beta regression, as in previous analyses
+turnover_for_analysis <- turnover %>%
+  group_by(binary) %>%
+  mutate(value_transform = transform_proportion(value)) %>%
+  ungroup()
+```
+
+## Step 2: Get organized
+
+**Get organized**
+
+Create structure to hole models and results (will have 6 models total)
+```{r step2a, message = FALSE}
+yvars = c("WN", "OS", "ST")
+yvars_names = data.frame(yvars = yvars, yvars_names = c("Interaction turnover", "Interaction turnover (shared species)", "Species turnover"))
+types = c("binary", "quant")
+
+base_table <- crossing(yvars, types) %>% 
+  left_join(yvars_names) %>%
+  mutate(yvars = factor(yvars, levels = c("WN", "ST", "OS"), ordered = TRUE)) %>%
+  arrange(types, yvars) %>%
+  mutate(model_number = 1:length(types)) %>%
+  mutate(model_id = paste(model_number, "visitation", types, sep = "_")) %>%
+  mutate(title = paste("visitation", types, sep = "_")) %>%
+  mutate(subtitle = yvars)
+```
+
+**Create function to subset data for each model of interest**
+```{r step2b, message = FALSE}
+#Function to subset data for each model of interest
+subset_data <- function(dataset, type, yvar){
+  
+  if(type == "binary"){dataset <- dataset %>% filter(binary == TRUE)} 
+  if(type == "quant"){dataset <- dataset %>% filter(binary == FALSE)}
+  
+  #Response variable
+  if(yvar == "WN"){dataset <- dataset %>% filter(metric == "WN")}
+  if(yvar == "ST"){dataset <- dataset %>% filter(metric == "ST")}
+  if(yvar == "OS"){dataset <- dataset %>% filter(metric == "OS")}
+   
+  return(dataset)
+  
+}
+
+#Function to create models
+create_model <- function(dataset, yvar){
+  
+  model <- eval(bquote(glmmTMB(.(as.formula(paste(yvar, "~ control_treatment + (1|patch)"))), data = dataset, na.action = na.omit, family = "beta_family")))
+   
+  return(model)
+  
+}
+```
+
+## Step 3: Analyze turnover metrics
+
+**Create models**
+```{r step3a, message = FALSE}
+models <- base_table %>%
+  mutate(data = pmap(list(types, yvars), ~subset_data(dataset = turnover_for_analysis, type = ..1, yvar = ..2))) %>%
+  mutate(model_quietly = pmap(list(data), quietly(function(a){model <- create_model(dataset = a, yvar = "value_transform")})),
+         model = map(model_quietly, get_result),
+         warning = map(model_quietly, get_warning), 
+         convergence = map(model, check_convergence)) %>%
+  mutate(xvar_table = map(model, ~data.frame(xvar = all.vars(terms(.))[-1])))
+
+#Make sure there weren't any problems + check to make sure table of predictor variables is correct
+# models$warning
+# models$convergence
+# models$xvar_table
+```
+
+**Check assumptions**
+```{r step3b, message = FALSE, fig.show = 'hide', results = 'hide'}
+assumption_checks <- models %>%
+  mutate(re_plot = pmap(list(model, title, subtitle), ~check_re(model = ..1, plot_title = ..2, plot_subtitle = ..3))) %>%
+  mutate(dharma_object = map(model,
+                             ~simulateResiduals(fittedModel = ., n = 1000, plot = FALSE, re.form = ~0))) %>%
+  mutate(dharma_plot_safely = pmap(list(dharma_object, title, subtitle),
+                                   safely(function(a, b, c){make_dharma_plot(dharma_object = a, plot_title = b, plot_subtitle = c, plot_type = "basic")})),
+         dharma_plot = map(dharma_plot_safely, get_result)) %>%
+  mutate(dharma_xvar_plot = pmap(list(xvar_table, data, dharma_object, title, subtitle),
+                                 ~make_dharma_xvar_plot(predictor_table = ..1, dataset = ..2, dharma_object = ..3, plot_title = ..4, plot_subtitle = ..5))) %>%
+  mutate(plotname1 = paste("re_diagnostics_", model_id, ".png", sep = "")) %>%
+  mutate(plotname2 = paste("dharma_overall_diagnostics_", model_id, ".png", sep = "")) %>%
+  mutate(plotname3 = paste("dharma_xvar_diagnostics_", model_id, ".png", sep = ""))
+         
+#Export diagnostic plots because they load very slowly in RStudio
+setwd("../results/analyses_experiment/interaction_turnover/assumption_checks")
+walk2(assumption_checks$plotname1, assumption_checks$re_plot, ~ggsave(filename = .x, plot = .y, height = 11.5, width = 15, units = "in", bg = "white"))
+walk2(assumption_checks$plotname2, assumption_checks$dharma_plot, ~ggsave(filename = .x, plot = .y, height = 11.5, width = 15, units = "in"))
+walk2(assumption_checks$plotname3, assumption_checks$dharma_xvar_plot, ~ggsave(filename = .x, plot = .y, height = 11.5, width = 15, units = "in"))
+```
+
+**Create model summaries, calculate confidence intervals, and tidy results into dataframe for export**
+```{r step3c, message = FALSE}
+#Will also add information about sample size: total # of observations (rows), number of levels per random effect, and the number of replicates (split into 'control' vs. 'treatment')
+results <- models %>%
+  mutate(summary = map(model, summary),
+         summary_tidy = map(model, broom.mixed::tidy),
+         confint_wald = map(model, ~calculate_ci(., method_name = "wald"))) %>%
+  mutate(num_obs = map(model, get_number_obs),
+         num_levels = map(model, get_number_re_levels),
+         num_reps = map(data, ~get_sample_size(data = ., vars = c("year", "patch", "control_treatment"), grouping_var = "control_treatment")))
+
+#Extract model summaries
+results_tidy <- results %>%
+  select(model_number, types, yvars, summary_tidy) %>%
+  unnest(c(summary_tidy))
+
+#Extract confidence intervals
+results_confint <- results %>%
+  select(model_number, types, yvars, confint_wald) %>%
+  mutate(confint_df = map(confint_wald, as.data.frame)) %>% #CI as dataframe
+  mutate(confint_df = map(confint_df, ~tibble::rownames_to_column(., var = "term"))) %>%
+  unnest(cols = confint_df) %>%
+  rename(lowerCI = "2.5 %", upperCI = "97.5 %") %>%
+  select(-confint_wald, -Estimate)
+
+#Back-transform coefficients and confidence intervals to data scale from model scale
+results_tidy_confint <- results_tidy %>%
+  left_join(results_confint) %>%
+  mutate_at(vars(estimate, lowerCI, upperCI), .funs = list(exp = ~ifelse(effect == "fixed", exp(.), NA))) %>% 
+  mutate_at(vars(estimate, std.error, statistic, lowerCI, upperCI, estimate_exp, lowerCI_exp, upperCI_exp), ~round(., digits = 2)) %>%
+  mutate(pvalue_round = format.pval(pv = p.value, digits = 2, eps = 0.001)) %>%
+  select(model_number:term, estimate, lowerCI, upperCI, statistic, pvalue_round, pvalue = p.value, std_error = std.error, everything())
+
+#Extract number of reps for each dataset
+sample_size <- results %>%
+  select(model_number, types, yvars, num_obs, num_reps) %>%
+  unnest(cols = num_reps) %>%
+  mutate(num_obs = unlist(num_obs))
+```
+
+**Calculate estimated marginal means and contrasts**
+```{r step3d, message = FALSE}
+#Function to calculate contrasts of 'probabilities' (not really probabilities, because they're actually indices, but on response scale)
+calculate_contrasts <- function(model){
+  
+  emm = emmeans(model, specs = ~control_treatment) 
+  emm_log = regrid(emm, transform = "log")
+  #result = summary(contrast(emm_log, interaction = "revpairwise"), type = "response") #Without CI, with p-value
+  result = confint(contrast(emm_log, interaction = "revpairwise"), type = "response") #With CI, without p-value
+  
+  return(result)
+  
+}
+
+emmeans_contrasts <- results %>%
+  mutate(ggeffects = map(model, ~ggemmeans(., terms = c("control_treatment"), back.transform = TRUE))) %>%
+  mutate(emm = map(model, ~emmeans(., specs = ~control_treatment))) %>%
+  mutate(contrasts = purrr::map(model, calculate_contrasts))
+
+emmeans <- emmeans_contrasts %>%
+  select(model_number, types, yvars, ggeffects) %>%
+  unnest(cols = c(ggeffects))
+
+contrasts <- emmeans_contrasts %>%
+  select(model_number, types, yvars, contrasts) %>%
+  unnest(contrasts) %>%
+  mutate_if(is.numeric, ~round(., digits = 3))
+```
+
+**Plot results**
+```{r step3e, message = FALSE, fig.width=12, fig.height=4}
+plots <- emmeans_contrasts %>%
+  mutate(plot = pmap(list(ggeffects, yvars), ~make_control_vs_treatment_plot(ggeffects_df = ..1, yvar = ..2, ymax = 0.5)))
+
+#Make multiplot (BINARY)
+plots_binary <- plots %>%
+  filter(types == "binary") %>%
+  arrange(yvars)
+
+multiplot_binary <- ggarrange(plotlist = plots_binary$plot, nrow = 1, ncol = 3, legend = "none")
+multiplot_binary
+
+#Make multiplot (QUANTITATIVE)
+plots_quant <- plots %>%
+  filter(types == "quant") %>%
+  arrange(yvars)
+
+multiplot_quant <- ggarrange(plotlist = plots_quant$plot, nrow = 1, ncol = 3, legend = "none")
+multiplot_quant
+```
+
+## Step 4: Export results
+```{r step4}
+#Summary tables
+write.csv(results_tidy_confint, "../results/analyses_experiment/interaction_turnover/tables/Turnover_results_summary_tables.csv")
+write.csv(sample_size, "../results/analyses_experiment/interaction_turnover/tables/Turnover_results_sample_size_summary.csv")
+write.csv(emmeans, "../results/analyses_experiment/interaction_turnover/tables/Turnover_results_emmeans.csv")
+write.csv(contrasts, "../results/analyses_experiment/interaction_turnover/tables/Turnover_results_contrasts.csv")
+
+#Plots
+ggsave("../results/analyses_experiment/interaction_turnover/figures/Turnover_multiplot_binary.png", multiplot_binary, dpi = 300, units = "in", width = 12, height = 4, bg = "white")
+ggsave("../results/analyses_experiment/interaction_turnover/figures/Turnover_multiplot_quant.png", multiplot_quant, dpi = 300, units = "in", width = 12, height = 4, bg = "white")
+```
+
