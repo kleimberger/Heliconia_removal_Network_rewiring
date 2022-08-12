@@ -1,0 +1,161 @@
+---
+title: "Making toy networks for turnover figure"
+output: html_document
+---
+
+**Goal**
+
+Make demo networks to help communicate each component of network dissimilarity (total, species turnover, and 'rewiring')
+
+```{r setup, include = FALSE}
+library(bipartite)
+library(vegan)
+library(dplyr)
+library(tidyr)
+```
+
+## Step 1: Make up some data
+```{r}
+#Want to have 3 plants and 3 birds
+before <- data.frame(plant_species = c("plant1", "plant2", "plant3"), bird1 = c(1, 1, 0), bird2 = c(1, 0, 1), bird3 = c(1, 0, 0))
+after <- data.frame(plant_species = c("plant1", "plant2", "plant3"), bird1 = c(0, 1, 1), bird2 = c(1, 0, 1), bird4 = c(0, 1, 1))
+
+#Matrices
+before_matrix <- data.matrix(before)[,-1] #Get rid of first column
+rownames(before_matrix) <- before$plant_species
+before_matrix
+
+after_matrix <- data.matrix(after)[,-1] #Get rid of first column
+rownames(after_matrix) <- after$plant_species
+after_matrix
+
+#Combine networks so I can highlight what was gained/lost
+#If the partners interacted **at any point** (before or after), include that here
+before_and_after <- bind_rows(before, after) %>%
+  pivot_longer(cols = c(bird1, bird2, bird3, bird4), names_to = "bird_species") %>%
+  mutate(bird_plant = paste(bird_species, plant_species, sep = "_")) %>%
+  filter(value > 0) %>%
+  filter(!is.na(value)) %>%
+  distinct()
+
+before_and_after_wide <- before_and_after %>%
+  select(-bird_plant) %>%
+  pivot_wider(names_from = bird_species, values_from = value, values_fill = 0)
+
+#Convert to matrix
+before_and_after_matrix <- data.matrix(before_and_after_wide)[,-1] #Get rid of first column
+rownames(before_and_after_matrix) <- before_and_after_wide$plant_species
+before_and_after_matrix
+```
+
+How many interactions in each network?
+```{r}
+#Total number of interactions per network
+#multiply total # species in network by # links/species
+(networklevel(before_matrix, index = "number of species")[[1]] + networklevel(before_matrix, index = "number of species")[[2]]) * networklevel(before_matrix, index = "links per species")[[1]]
+(networklevel(after_matrix, index = "number of species")[[1]] + networklevel(after_matrix, index = "number of species")[[2]]) * networklevel(after_matrix, index = "links per species")[[1]]
+```
+
+## Step 2: Visualize before and after networks in black and white (no color coding)
+```{r}
+plotweb(before_matrix, method = "normal", arrow = "no", low.lablength = 0, high.lablength = 0) 
+
+network_before <- recordPlot() #from package grDevices
+png("../results/analyses_experiment/interaction_turnover/figures/Toy_network_before_bw.png", width = 12, height = 10, res = 300, units = "in")
+network_before
+dev.off()
+
+plotweb(after_matrix, method = "normal", arrow = "no", low.lablength = 0, high.lablength = 0)
+network_after <- recordPlot() #from package grDevices
+png("../results/analyses_experiment/interaction_turnover/figures/Toy_network_after_bw.png", width = 12, height = 10, res = 300, units = "in")
+network_after
+dev.off()
+
+plotweb(before_and_after_matrix, method = "normal", arrow = "no")
+```
+
+## Step 3: Color-code interactions by component (species turnover vs. rewiring) and type (interaction gain vs. interaction loss)
+
+Code interactions by type
+```{r}
+#2 = interaction loss (species turnover)
+#3 = interaction gain (species turnover)
+#4 = interaction loss (rewiring)
+#5 = interaction gain (rewiring)
+
+before_and_after_coded <- before_and_after %>%
+  mutate(value = ifelse(bird_species == "bird3", 2, value)) %>%
+  mutate(value = ifelse(bird_species == "bird4", 3, value)) %>%
+  mutate(value = ifelse(bird_plant == "bird1_plant1", 4, value)) %>%
+  mutate(value = ifelse(bird_plant == "bird1_plant3", 5, value))
+
+before_and_after_coded_wide <- before_and_after_coded %>%
+  select(-bird_plant) %>%
+  pivot_wider(names_from = bird_species, values_from = value, values_fill = 0)
+
+before_and_after_matrix_coded <- data.matrix(before_and_after_coded_wide)[,-1] #Get rid of first column
+rownames(before_and_after_matrix_coded) <- before_and_after_coded_wide$plant_species
+before_and_after_matrix_coded
+```
+
+Calculate betalink metrics for these networks
+```{r}
+webs_array <- bipartite::webs2array(before_matrix, after_matrix)
+betalink <- betalinkr(webs_array, partitioning = "commondenom", index = "bray", partition.st = TRUE, partition.rr = FALSE, binary = TRUE)
+
+betalink_df <- as.data.frame(t(betalink))
+betalink_df
+
+#Check to make sure components were calculated correctly
+betalink_df$WN
+betalink_df$ST + betalink_df$OS
+```
+
+Highlight interactions that were lost/gained
+```{r}
+colors <- c("#F0002C", "#4C49F2") #bright red, bright blue
+
+matrix_binary = before_and_after_matrix
+matrix_coded = before_and_after_matrix_coded
+
+#Blue = rewiring, Red = gain/loss
+plotweb(matrix_binary, method="normal", arrow="no",
+        low.lablength=0, high.lablength=0,
+        col.interaction = t(ifelse(matrix_coded[,] == 2, adjustcolor(colors[[1]], alpha.f = 0.5), #loss (species turnover)
+                                   ifelse(matrix_coded[,] == 3,  adjustcolor(colors[[1]], alpha.f = 1), #gain (species turnover)
+                                          ifelse(matrix_coded[,] == 4,  adjustcolor(colors[[2]], alpha.f = 0.5), #loss (rewiring)
+                                                 ifelse(matrix_coded[,] == 5,  adjustcolor(colors[[2]], alpha.f = 1), "grey80")))))) #gain (rewiring)
+
+
+network_WN <- recordPlot() #from package grDevices
+png("../results/analyses_experiment/interaction_turnover/figures/Toy_network_WN_color_coded.png", width = 12, height = 10, res = 300, units = "in")
+network_WN
+dev.off()
+```
+
+Highlight interactions that were lost/gained due to species turnover only
+```{r}
+plotweb(matrix_binary, method="normal", arrow="no",
+        low.lablength=0, high.lablength=0,
+        col.interaction = t(ifelse(matrix_coded[,] == 2, adjustcolor(colors[[1]], alpha.f = 0.5), #loss (species turnover)
+                                   ifelse(matrix_coded[,] == 3,  adjustcolor(colors[[1]], alpha.f = 1), "grey80")))) #gain (species turnover)
+
+network_ST <- recordPlot() #from package grDevices
+png("../results/analyses_experiment/interaction_turnover/figures/Toy_network_ST_color_coded.png", width = 12, height = 10, res = 300, units = "in")
+network_ST
+dev.off()
+```
+
+Highlight interactions that were lost/gained due to rewiring
+```{r}
+plotweb(matrix_binary, method="normal", arrow="no",
+        low.lablength=0, high.lablength=0,
+        col.interaction = t(ifelse(matrix_coded[,] == 4, adjustcolor(colors[[2]], alpha.f = 0.5), #loss (rewiring)
+                                   ifelse(matrix_coded[,] == 5,  adjustcolor(colors[[2]], alpha.f = 1), "grey80")))) #gain (rewiring)
+ 
+network_OS <- recordPlot() #from package grDevices
+png("../results/analyses_experiment/interaction_turnover/figures/Toy_network_OS_color_coded.png", width = 12, height = 10, res = 300, units = "in")
+network_OS
+dev.off()
+```
+
