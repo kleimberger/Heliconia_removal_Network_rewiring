@@ -92,8 +92,8 @@ bipartite::plotweb(pollen_matrix, method = "cca", arrow = "no",
                    col.interaction = t(ifelse(pollen_matrix[,] > 0 & rownames(pollen_matrix) == "Heliconia", "#BA0022", "grey80")),
                    bor.col.interaction = t(ifelse(pollen_matrix[,] > 0 & rownames(pollen_matrix) == "Heliconia", "#BA0022", "black")))
 
-pollen_network <- recordPlot() #from package grDevices
-png("../results/network_visualizations/metanetworks/Pollen_metanetwork.png", width = 12, height = 10, res = 300, units = "in")
+pollen_network <- grDevices::recordPlot()
+png("../results/network_visualizations/metanetworks/Pollen_metanetwork.png", width = 12, height = 10, res = 300, units = "in", bg = "white")
 pollen_network
 dev.off()
 ```
@@ -117,8 +117,16 @@ bipartite::plotweb(camera_matrix, method = "cca", arrow = "no",
                    col.interaction = t(ifelse(camera_matrix[,] > 0 & rownames(camera_matrix) == "Heliconia", "#BA0022", "grey80")),
                    bor.col.interaction = t(ifelse(camera_matrix[,] > 0 & rownames(camera_matrix) == "Heliconia", "#BA0022", "black")))
 
-camera_network <- recordPlot() #from package grDevices
-png("../results/network_visualizations/metanetworks/Camera_metanetwork.png", width = 12, height = 10, res = 300, units = "in")
+camera_network <- grDevices::recordPlot()
+png("../results/network_visualizations/metanetworks/Camera_metanetwork.png", width = 12, height = 10, res = 300, units = "in", bg = "white")
 camera_network
 dev.off()
 ```
+
+## Step 4: Combine plots and export
+```{r}
+network_multiplot <- ggpubr::ggarrange(camera_network, pollen_network, ncol = 1, align = "h")
+
+ggplot2::ggsave("../results/network_visualizations/metanetworks/Pollen_and_camera_metanetworks_multiplot.png", network_multiplot, width = 10, height = 18, dpi = 300, units = "in", bg = "white")
+```
+

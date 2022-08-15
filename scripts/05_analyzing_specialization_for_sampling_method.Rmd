@@ -69,6 +69,11 @@ data_long <- data %>%
   pivot_wider(names_from = "sampling_method", values_from = value) %>%
   filter(!is.na(pollen) & !is.na(visitation)) %>%
   pivot_longer(cols = c("pollen", "visitation"), names_to = "sampling_method")
+
+#Functions
+source("../scripts/helper_functions/Calculate_basic_summary_stats.R")
+source("../scripts/helper_functions/Transform_proportion_for_betareg.R")
+source("../scripts/helper_functions/Modeling_helper_functions.R")
 ```
 
 ## Step 2: Are camera networks more specialized than pollen networks?
@@ -76,8 +81,6 @@ data_long <- data %>%
 **Explore data**
 ```{r step2a}
 #What are ranges of each response variable?
-source("../scripts/helper_functions/Calculate_basic_summary_stats.R")
-
 response_variable_sum <- data_long %>%
   group_by(metric) %>%
   calculate_basic_summary_stats(value)
@@ -86,13 +89,13 @@ response_variable_sum
 
 #Are visitation networks more specialized than pollen networks, as predicted?
 #Make a plot to visually examine. Will also analyze statistically in next step
-h2_label <- expression(italic(H[2])*"'")
-d_label <- expression(italic(d)*"' (mean)")
-ssi_label <- expression("SSI~(mean)")
+h2_label <- expression(paste(italic(H[2])*"'"))
+d_label <- expression(paste("mean "*italic(d)*"'"))
+ssi_label <- expression("mean~SSI")
 
 #As density plot
 specialization_density_plot <- data_long %>%
-  mutate(sampling_method = factor(sampling_method, levels = c("pollen", "visitation"), labels = c("Pollen", "Visitation"))) %>%
+  mutate(sampling_method = factor(sampling_method, levels = c("pollen", "visitation"), labels = c("Pollen", "Camera"))) %>%
   mutate(metric = factor(metric, levels = c("H2", "d", "species.specificity.index"), labels = c(h2_label, d_label, ssi_label))) %>%
   ggplot(., aes(x = value, fill = sampling_method)) +
     facet_grid(.~metric, labeller = label_parsed) +
@@ -109,7 +112,7 @@ specialization_density_plot
 
 #As boxplot
 specialization_boxplot <- data_long %>%
-  mutate(sampling_method = factor(sampling_method, levels = c("pollen", "visitation"), labels = c("Pollen", "Visitation"))) %>%
+  mutate(sampling_method = factor(sampling_method, levels = c("pollen", "visitation"), labels = c("Pollen", "Camera"))) %>%
   mutate(metric = factor(metric, levels = c("H2", "d", "species.specificity.index"), labels = c(h2_label, d_label, ssi_label))) %>%
   ggplot(aes(x = sampling_method, y = value, color = sampling_method)) +
     geom_boxplot(width = 0.25, outlier.shape = NA) +
@@ -130,8 +133,6 @@ Will use beta regression after transforming response variable to not include zer
 **Transform response**
 ```{r step2b}
 #For beta regression, transform response using method of Cribari-Neto & Zeileis 2010 to remove zeroes
-source("../scripts/helper_functions/Transform_proportion_for_betareg.R")
-
 data_long_transform <- data_long %>%
   group_by(sampling_method, metric) %>%
   mutate(value_transform = transform_proportion(value)) %>%
@@ -255,8 +256,6 @@ r2(model6_no_outlier)
 
 **Create model summaries, calculate confidence intervals, and tidy results into dataframe for export**
 ```{r step4a}
-source("../scripts/helper_functions/Modeling_helper_functions.R")
-
 results <- specialization_models %>%
   bind_rows(correlation_models) %>%
   mutate(summary = map(model, summary),
@@ -328,8 +327,12 @@ specialization_contrasts <- specialization_emmeans_contrasts %>%
 #Function to make plot
 make_specialization_plot <- function(ggeffects, yvar){
   
+  if(yvar == "H2"){ylabel <- c(expression(paste(italic(H[2])*"'")))}
+  if(yvar == "d"){ylabel <-  c(expression(paste("mean "*italic(d)*"'")))}
+  if(yvar == "species.specificity.index"){ylabel <- c("mean SSI")}
+  
   plot <- ggeffects %>%
-            mutate(x = factor(x, levels = c("pollen", "visitation"), labels = c("Pollen", "Visitation"))) %>%
+            mutate(x = factor(x, levels = c("pollen", "visitation"), labels = c("Pollen", "Camera"))) %>%
             ggplot(data = ., aes(x = x, y = predicted)) + 
               geom_point(aes(x = x, y = predicted), position = position_dodge(width = 0.25), size = 4, shape = 16) +
               geom_errorbar(aes(ymin = conf.low, ymax = conf.high), position = position_dodge(width = 0.25), width = 0.0, size = 1) +
@@ -339,13 +342,8 @@ make_specialization_plot <- function(ggeffects, yvar){
                     panel.grid.major = element_blank(),
                     panel.grid.minor = element_blank(),
                     plot.title = element_text(hjust = 0.5)) +
-              labs(x="") +
+              labs(x = "", y = ylabel) +
               scale_y_continuous(limits = c(0, 0.8))
-    
-  
-  if(yvar == "H2"){plot <- plot + labs(y = expression(atop("Network specialization", paste("("*italic(H[2])*"')"))))}
-  if(yvar == "d"){plot <- plot + labs(y = expression(atop("Species specialization", paste("(mean "*italic(d)*"')"))))}
-  if(yvar == "species.specificity.index"){plot <- plot + labs(y = expression(atop("Species specialization", paste("(mean SSI)"))))}
 
   return(plot)
   
@@ -353,10 +351,6 @@ make_specialization_plot <- function(ggeffects, yvar){
 
 specialization_results_plots <- specialization_emmeans_contrasts %>%
   mutate(predicted_plot = map2(ggeffects, metric, ~make_specialization_plot(ggeffects = .x, yvar = .y)))
-
-#Combine into one plot...
-specialization_results_multiplot <- ggarrange(plotlist = specialization_results_plots$predicted_plot, nrow = 3)
-specialization_results_multiplot
 ```
 
 **For Question 2 (pollen ~ visitation), make plots for publication**
@@ -381,7 +375,7 @@ make_correlation_plot <- function(ggeffects, data, yvar){
     theme(legend.position = "none", panel.grid.major = element_blank(), panel.grid.minor = element_blank(), strip.background = element_rect(fill="white")) + 
     scale_y_continuous(labels = scales::number_format(accuracy = 0.1, decimal.mark = '.')) +
     scale_shape_manual(values = c(19, 8)) +
-    labs(x = "Visitation network", y = "Pollen network") +
+    labs(x = "Camera", y = "Pollen") +
     ylim(0,1) +
     xlim(0,1)
 
@@ -391,24 +385,26 @@ make_correlation_plot <- function(ggeffects, data, yvar){
 
 correlation_results_plots <- correlation_predictions %>%
   mutate(predicted_plot = pmap(list(ggeffects, data, metric), ~make_correlation_plot(ggeffects = ..1, data = ..2, yvar = ..3)))
-
-#Combine into one plot...
-correlation_results_multiplot <- ggarrange(plotlist = correlation_results_plots$predicted_plot, nrow = 3)
-correlation_results_multiplot
 ```
 
-## Step 5: Export results
-```{r step5}
-#Summary tables (Q1 + Q2)
+## Step 5: Combine specialization and correlation results into one plot
+```{r step5, message = FALSE, warning = FALSE}
+all_results <- bind_rows(specialization_results_plots, correlation_results_plots) %>%
+  mutate(metric = factor(metric, levels = c("H2", "d", "species.specificity.index"))) %>%
+  arrange(metric, model_number)
+
+results_multiplot <- ggarrange(plotlist = all_results$predicted_plot, ncol = 2, nrow = 3)
+results_multiplot
+```
+
+## Step 6: Export results
+```{r step6}
+#Q1 + Q2
 write.csv(results_tidy_confint, "../results/analyses_sampling_method/tables/Sampling_method_results_summary_tables.csv") #model summaries
+ggsave("../results/analyses_sampling_method/figures/Sampling_method_results_multiplot.png", results_multiplot, dpi = 300, units = "in", width = 8, height = 11)
 
 #Q1
 write.csv(specialization_emmeans, "../results/analyses_sampling_method/tables/Specialization_results_emmeans.csv")
 write.csv(specialization_contrasts, "../results/analyses_sampling_method/tables/Specialization_results_contrasts.csv") 
-
 ggsave("../results/analyses_sampling_method/figures/Specialization_density_plot.png", specialization_density_plot, dpi = 300, units = "in", width = 9, height = 5)
-ggsave("../results/analyses_sampling_method/figures/Specialization_results_multiplot.png", specialization_results_multiplot, dpi = 300, units = "in", width = 4, height = 11)
-
-#Q2
-ggsave("../results/analyses_sampling_method/figures/Correlation_results_multiplot.png", correlation_results_multiplot, dpi = 300, units = "in", width = 4, height = 11)
 ```

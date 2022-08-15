@@ -251,14 +251,16 @@ multiplot_quant
 
 ## Step 4: Export results
 ```{r step4}
+path_name <- c("../results/analyses_experiment/interaction_turnover")
+
 #Summary tables
-write.csv(results_tidy_confint, "../results/analyses_experiment/interaction_turnover/tables/Turnover_results_summary_tables.csv")
-write.csv(sample_size, "../results/analyses_experiment/interaction_turnover/tables/Turnover_results_sample_size_summary.csv")
-write.csv(emmeans, "../results/analyses_experiment/interaction_turnover/tables/Turnover_results_emmeans.csv")
-write.csv(contrasts, "../results/analyses_experiment/interaction_turnover/tables/Turnover_results_contrasts.csv")
+write.csv(results_tidy_confint, file.path(path_name, "tables/Turnover_results_summary_tables.csv"))
+write.csv(sample_size, file.path(path_name, "tables/Turnover_results_sample_size_summary.csv"))
+write.csv(emmeans, file.path(path_name, "tables/Turnover_results_emmeans.csv"))
+write.csv(contrasts, file.path(path_name, "tables/Turnover_results_contrasts.csv"))
 
 #Plots
-ggsave("../results/analyses_experiment/interaction_turnover/figures/Turnover_multiplot_binary.png", multiplot_binary, dpi = 300, units = "in", width = 12, height = 4, bg = "white")
-ggsave("../results/analyses_experiment/interaction_turnover/figures/Turnover_multiplot_quant.png", multiplot_quant, dpi = 300, units = "in", width = 12, height = 4, bg = "white")
+ggsave(file.path(path_name, "figures/Turnover_multiplot_binary.png"), multiplot_binary, dpi = 300, units = "in", width = 12, height = 4, bg = "white")
+ggsave(file.path(path_name, "figures/Turnover_multiplot_quant.png"), multiplot_quant, dpi = 300, units = "in", width = 12, height = 4, bg = "white")
 ```
 

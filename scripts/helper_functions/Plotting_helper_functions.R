@@ -14,9 +14,9 @@ make_interaction_plot <- function(ggeffects_df, yvar, ymax, quick_plot = FALSE){
   # if(yvar == "d"){ylabel <-  c(expression(atop("Species specialization", paste("(mean "*italic(d)*"')"))))}
   # if(yvar == "species.specificity.index"){ylabel <- c(expression(atop("Species specialization", paste("(mean SSI)"))))}
   
-  if(yvar == "H2"){ylabel <- c(expression(atop(paste(italic(H[2])*"'"), "(network)")))}
-  if(yvar == "d"){ylabel <-  c(expression(atop(paste("mean "*italic(d)*"'"), "(species)")))}
-  if(yvar == "species.specificity.index"){ylabel <- c(expression(atop(paste("mean SSI"), "(species)")))}
+  if(yvar == "H2"){ylabel <- c(expression(paste(italic(H[2])*"'")))}
+  if(yvar == "d"){ylabel <-  c(expression(paste("mean "*italic(d)*"'")))}
+  if(yvar == "species.specificity.index"){ylabel <- c("mean SSI")}
   if(yvar == "num_morphotypes"){ylabel <- c("# morphotypes")}
   
   #Group/legend labels
@@ -38,6 +38,7 @@ make_interaction_plot <- function(ggeffects_df, yvar, ymax, quick_plot = FALSE){
  
   #Plotting by hand for increased customizability
   plot <- ggeffects_df %>%
+    mutate(group = factor(group, levels = c("control", "treatment"), labels = c("Control", "Treatment"))) %>%
     mutate(x = factor(x, levels = c("pre", "post"), labels = c("Pre", "Post"))) %>%
     ggplot(data = ., aes(x = x, y = predicted, colour = group, shape = group)) + 
       geom_point(aes(x = x, y = predicted, colour = group), position = position_dodge(width = 0.25), size = 3.5) +
@@ -62,17 +63,17 @@ make_interaction_plot <- function(ggeffects_df, yvar, ymax, quick_plot = FALSE){
 make_control_vs_treatment_plot <- function(ggeffects_df, yvar, ymax){
   
   #Colors and shapes
-  colors <- c("#0E0D37", "#BA0022") #blue, red
+  #colors <- c("#0E0D37", "#BA0022") #blue, red
   shapes <- c(16, 17) #circle, triangle (filled)
   
   #Label for y-axis
-  if(yvar == "WN"){ylabel <- c("Interaction turnover\n(total)")}
-  if(yvar == "ST"){ylabel <-  c("Interaction turnover\n(species gain or loss)")}
-  if(yvar == "OS"){ylabel <- c("Interaction turnover\n(among species)")}
+  if(yvar == "WN"){ylabel <- c("Total")}
+  if(yvar == "ST"){ylabel <-  c("Species gain or loss")}
+  if(yvar == "OS"){ylabel <- c("Among shared species")}
   
   plot <- ggeffects_df %>%
     mutate(x = factor(x, levels = c("control", "treatment"), labels = c("Control", "Treatment"))) %>%
-    ggplot(data = ., aes(x = x, y = predicted, shape = x, colour = x)) + 
+    ggplot(data = ., aes(x = x, y = predicted, shape = x)) + 
     geom_point(aes(x = x, y = predicted), position = position_dodge(width = 0.25), size = 4) +
     geom_errorbar(aes(ymin = conf.low, ymax = conf.high), position = position_dodge(width = 0.25), width = 0.0, size = 1) +
     theme_bw(base_size = 20) +
@@ -81,7 +82,7 @@ make_control_vs_treatment_plot <- function(ggeffects_df, yvar, ymax){
           panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
           plot.title = element_text(hjust = 0.5)) +
-    scale_color_manual(values = colors) +
+    #scale_color_manual(values = colors) +
     labs(x = "", y = ylabel, shape = "", color = "") +
     ylim(0, ymax)
   
