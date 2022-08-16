@@ -113,7 +113,7 @@ betalink_df$ST + betalink_df$OS
 
 Highlight interactions that were lost/gained
 ```{r}
-colors <- c("#F0002C", "#4C49F2") #bright red, bright blue
+colors <- RColorBrewer::brewer.pal(6, "Paired")[-c(3:4)]
 
 matrix_binary = before_and_after_matrix
 matrix_coded = before_and_after_matrix_coded
@@ -121,10 +121,10 @@ matrix_coded = before_and_after_matrix_coded
 #Blue = rewiring, Red = gain/loss
 plotweb(matrix_binary, method="normal", arrow="no",
         low.lablength=0, high.lablength=0,
-        col.interaction = t(ifelse(matrix_coded[,] == 2, adjustcolor(colors[[1]], alpha.f = 0.5), #loss (species turnover)
-                                   ifelse(matrix_coded[,] == 3,  adjustcolor(colors[[1]], alpha.f = 1), #gain (species turnover)
-                                          ifelse(matrix_coded[,] == 4,  adjustcolor(colors[[2]], alpha.f = 0.5), #loss (rewiring)
-                                                 ifelse(matrix_coded[,] == 5,  adjustcolor(colors[[2]], alpha.f = 1), "grey80")))))) #gain (rewiring)
+        col.interaction = t(ifelse(matrix_coded[,] == 2, adjustcolor(colors[[1]], alpha.f = 1), #loss (species turnover)
+                                   ifelse(matrix_coded[,] == 3,  adjustcolor(colors[[2]], alpha.f = 1), #gain (species turnover)
+                                          ifelse(matrix_coded[,] == 4,  adjustcolor(colors[[3]], alpha.f = 1), #loss (rewiring)
+                                                 ifelse(matrix_coded[,] == 5,  adjustcolor(colors[[4]], alpha.f = 1), "grey80")))))) #gain (rewiring)
 
 
 network_WN <- recordPlot() #from package grDevices
@@ -137,8 +137,8 @@ Highlight interactions that were lost/gained due to species turnover only
 ```{r}
 plotweb(matrix_binary, method="normal", arrow="no",
         low.lablength=0, high.lablength=0,
-        col.interaction = t(ifelse(matrix_coded[,] == 2, adjustcolor(colors[[1]], alpha.f = 0.5), #loss (species turnover)
-                                   ifelse(matrix_coded[,] == 3,  adjustcolor(colors[[1]], alpha.f = 1), "grey80")))) #gain (species turnover)
+        col.interaction = t(ifelse(matrix_coded[,] == 2, adjustcolor(colors[[1]], alpha.f = 1), #loss (species turnover)
+                                   ifelse(matrix_coded[,] == 3,  adjustcolor(colors[[2]], alpha.f = 1), "grey80")))) #gain (species turnover)
 
 network_ST <- recordPlot() #from package grDevices
 png("../results/analyses_experiment/interaction_turnover/figures/Toy_network_ST_color_coded.png", width = 12, height = 10, res = 300, units = "in")
@@ -150,8 +150,8 @@ Highlight interactions that were lost/gained due to rewiring
 ```{r}
 plotweb(matrix_binary, method="normal", arrow="no",
         low.lablength=0, high.lablength=0,
-        col.interaction = t(ifelse(matrix_coded[,] == 4, adjustcolor(colors[[2]], alpha.f = 0.5), #loss (rewiring)
-                                   ifelse(matrix_coded[,] == 5,  adjustcolor(colors[[2]], alpha.f = 1), "grey80")))) #gain (rewiring)
+        col.interaction = t(ifelse(matrix_coded[,] == 4, adjustcolor(colors[[3]], alpha.f = 1), #loss (rewiring)
+                                   ifelse(matrix_coded[,] == 5,  adjustcolor(colors[[4]], alpha.f = 1), "grey80")))) #gain (rewiring)
  
 network_OS <- recordPlot() #from package grDevices
 png("../results/analyses_experiment/interaction_turnover/figures/Toy_network_OS_color_coded.png", width = 12, height = 10, res = 300, units = "in")

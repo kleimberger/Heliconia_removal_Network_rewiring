@@ -6,7 +6,8 @@
 make_interaction_plot <- function(ggeffects_df, yvar, ymax, quick_plot = FALSE){
   
   #Colors and shapes
-  colors <- c("#0E0D37", "#BA0022") #blue, red
+  #colors <- c("#0E0D37", "#BA0022") #blue, red
+  colors <- c("#1F78B4", "#E31A1C") #blue, red (from paired palette)
   shapes <- c(16, 17) #circle, triangle (filled)
   
   #Label for y-axis
@@ -30,7 +31,7 @@ make_interaction_plot <- function(ggeffects_df, yvar, ymax, quick_plot = FALSE){
                        connect.lines = TRUE,
                        colors = colors,
                        show.title = FALSE) +
-      labs(x = "Experimental phase", y = ylabel, colour = "")
+      labs(x = "Experimental period", y = ylabel, colour = "")
     
     return(quick_plot)
     
@@ -49,7 +50,7 @@ make_interaction_plot <- function(ggeffects_df, yvar, ymax, quick_plot = FALSE){
       scale_y_continuous(labels = scales::number_format(accuracy = 0.1, decimal.mark = '.')) +
       scale_color_manual(values = colors, labels = group_labels) +
       scale_shape_manual(values = shapes, labels = group_labels) +
-      labs(x = "Experimental phase", y = ylabel, colour = legend_label, shape = legend_label) +
+      labs(x = "Experimental period", y = ylabel, colour = legend_label, shape = legend_label) +
       ylim(0, ymax)
     
   return(plot)
@@ -62,10 +63,6 @@ make_interaction_plot <- function(ggeffects_df, yvar, ymax, quick_plot = FALSE){
 #This plot is similar to interaction plot, but for response variables not calculated at the level of experimental period (control vs. treatment only)
 make_control_vs_treatment_plot <- function(ggeffects_df, yvar, ymax){
   
-  #Colors and shapes
-  #colors <- c("#0E0D37", "#BA0022") #blue, red
-  shapes <- c(16, 17) #circle, triangle (filled)
-  
   #Label for y-axis
   if(yvar == "WN"){ylabel <- c("Total")}
   if(yvar == "ST"){ylabel <-  c("Species gain or loss")}
@@ -73,7 +70,7 @@ make_control_vs_treatment_plot <- function(ggeffects_df, yvar, ymax){
   
   plot <- ggeffects_df %>%
     mutate(x = factor(x, levels = c("control", "treatment"), labels = c("Control", "Treatment"))) %>%
-    ggplot(data = ., aes(x = x, y = predicted, shape = x)) + 
+    ggplot(data = ., aes(x = x, y = predicted)) + 
     geom_point(aes(x = x, y = predicted), position = position_dodge(width = 0.25), size = 4) +
     geom_errorbar(aes(ymin = conf.low, ymax = conf.high), position = position_dodge(width = 0.25), width = 0.0, size = 1) +
     theme_bw(base_size = 20) +
@@ -82,7 +79,6 @@ make_control_vs_treatment_plot <- function(ggeffects_df, yvar, ymax){
           panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
           plot.title = element_text(hjust = 0.5)) +
-    #scale_color_manual(values = colors) +
     labs(x = "", y = ylabel, shape = "", color = "") +
     ylim(0, ymax)
   
