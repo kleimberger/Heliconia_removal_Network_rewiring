@@ -88,6 +88,45 @@ make_dharma_xvar_plot <- function(predictor_table, dataset, dharma_object, plot_
   return(multiplot)
 }
 
+####################################################
+#Make influence plots (DFBETAS and Cook's distance)
+####################################################
+#The 'influence_mixed' function calculates influence objects for glmmTMB
+source(system.file("other_methods","influence_mixed.R", package="glmmTMB")) 
+
+make_influence_plot <- function(model, dataset, plot_title, plot_subtitle, group_id) {
+  
+  #Create influence object (class influence.merMod)
+  influence_object <- influence_mixed(model, group = group_id) 
+
+  #Check for convergence warnings; lack of convergence can mistakenly lead to certain groups appearing highly influential
+  warnings <- influence_object$converged %>% as.data.frame()
+  names(warnings) <- c("converged")
+  num_warnings <- dim(warnings %>% filter(converged == "FALSE"))[[1]]
+  
+  #Make DFBETAS plot
+  car::infIndexPlot(influence_object, vars = c("dfbetas"))
+  dfbetas_plot <- recordPlot() #from package grDevices
+  plot.new()
+  
+  #Make Cook's distance plot
+  car::infIndexPlot(influence_object, vars = c("cookd"), main = "Cook's Distance")
+  cooks_dist_plot <- recordPlot() #from package grDevices
+  plot.new()
+  
+  #Prepare text for final plot
+  title = bquote(atop(bold(.(plot_title)), textstyle(.(plot_subtitle))))
+  warnings_blurb = paste(num_warnings, " convergence warnings while creating influence object", sep = "")
+  
+  #Combine plots. Need to add a bit of space in beteween or else debetas plot gets really cut off
+  plot <- ggarrange(dfbetas_plot, text_grob(""), cooks_dist_plot, ncol = 3, nrow = 1, widths = c(1.5, 0.25, 1)) %>% 
+    annotate_figure(., top = text_grob(title), bottom = text_grob(warnings_blurb))
+  
+  return(plot)
+  
+}  
+ 
+
 #######################################
 #Extract information about sample size 
 ######################################

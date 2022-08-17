@@ -43,6 +43,10 @@ library(ggplot2)
 library(ggpubr)
 library(emmeans)
 library(ggeffects)
+
+#Set up parallel processing (influence checks take a while to run!)
+library(future)
+plan(multisession)
 ```
 
 ## Step 1: Import functions and datasets for analysis
@@ -109,7 +113,7 @@ Since I'll have quite a few models, I want to store them all in tibbles to stay 
 ```{r step2a, message = FALSE}
 bird_groups <- c("all_spp", "greh_visa")
 
-analysis_network <- c("pollen", "visitation")
+analysis_network <- c("pollen", "camera")
 yvars_network <- c("H2", "d", "species.specificity.index")
 yvars_names_network <- data.frame(yvars_network = yvars_network, yvars_names = c("H2'", "d'", "Species Specificity Index"))
 
@@ -159,7 +163,7 @@ subset_data <- function(dataset, analysis, bird_group, yvar){
     
      #Sampling method
     if(analysis == "pollen"){dataset <- dataset %>% filter(sampling_method == "pollen")}
-    if(analysis == "visitation"){dataset <- dataset %>% filter(sampling_method == "visitation")}
+    if(analysis == "camera"){dataset <- dataset %>% filter(sampling_method == "visitation")}
 
     #Hummingbird group of interest
     if(bird_group == "all_spp"){dataset <- dataset %>% filter(bird_group == "all_spp")}
@@ -205,7 +209,7 @@ create_model <- function(dataset, yvar){
 #Testing functions created in previous step
 #Datasets
 test_data01 <- subset_data(dataset = network_data, analysis = "pollen", bird_group = "all_spp", yvar = "H2")
-test_data02 <- subset_data(dataset = network_data, analysis = "visitation", bird_group = "all_spp", yvar = "H2")
+test_data02 <- subset_data(dataset = network_data, analysis = "camera", bird_group = "all_spp", yvar = "H2")
 
 test_data03 <- subset_data(dataset = richness_data, analysis = "recap", bird_group = "all_spp", yvar = "num_morphotypes")
 test_data04 <- subset_data(dataset = richness_data, analysis = "recap", bird_group = "greh_visa", yvar = "num_morphotypes")
@@ -254,10 +258,10 @@ assumption_checks_network <- models_network %>%
   mutate(plotname2 = paste("dharma_overall_diagnostics_network_", model_number, ".png", sep = "")) %>%
   mutate(plotname3 = paste("dharma_xvar_diagnostics_network_", model_number, ".png", sep = ""))
          
-#For some reason, this first model throws an error when making the DHARMa plot: x missing value where TRUE/FALSE needed
+#For some reason, one model throws an error when making the DHARMa plot: x missing value where TRUE/FALSE needed
 #The error seems to be for quantile regression that gives the lines on the resid vs. predicted plot
 #Except for missing the quantile regression lines, the plot looks OK though
-# models_network$model[[5]] %>% DHARMa::simulateResiduals() %>% plot()
+# models_network$model[[10]] %>% DHARMa::simulateResiduals() %>% plot()
 
 #Export diagnostic plots because they load very slowly in RStudio
 path_name <- c("../results/analyses_experiment/specialization/assumption_checks")
@@ -265,12 +269,24 @@ walk2(assumption_checks_network$plotname1, assumption_checks_network$re_plot, ~g
 walk2(assumption_checks_network$plotname3, assumption_checks_network$dharma_xvar_plot, ~ggsave(filename = .x, plot = .y, path = path_name, height = 11.5, width = 15, units = "in"))
 
 #Remove problematic plot before trying to export DHARMa plots
-assumption_checks_network <- assumption_checks_network %>% filter(model_number != "5")
+assumption_checks_network <- assumption_checks_network %>% filter(model_number != "10")
 walk2(assumption_checks_network$plotname2, assumption_checks_network$dharma_plot, ~ggsave(filename = .x, plot = .y, path = path_name, height = 11.5, width = 15, units = "in"))
 ```
 
+**Check for highly influential replicates**
+```{r step3c, message = FALSE, fig.show = 'hide', results = 'hide'}
+#Make plots of DFBETAS and Cook's distance
+influence_checks_network <- models_network %>%
+  mutate(influence_plot = pmap(list(model, data, title, subtitle), ~make_influence_plot(model = ..1, dataset = ..2, plot_title = ..3, plot_subtitle = ..4, group_id = "year_patch"))) %>%
+  mutate(plotname4 = paste("influence_diagnostics_network_", model_number, ".png", sep = ""))
+
+#Export plots
+path_name <- c("../results/analyses_experiment/specialization/assumption_checks")
+walk2(influence_checks_network$plotname4, influence_checks_network$influence_plot, ~ggsave(filename = .x, plot = .y, path = path_name, height = 11.5, width = 15, units = "in", bg = "white"))
+```
+
 **Create model summaries, calculate confidence intervals, and tidy results into dataframe for export**
-```{r step3c, message = FALSE}
+```{r step3d, message = FALSE}
 #Will also add information about sample size: total # of observations (rows), number of levels per random effect, and the number of replicates (split into 'control' vs. 'treatment')
 results_network <- models_network %>%
   mutate(summary = map(model, summary),
@@ -315,7 +331,7 @@ Control and treatment contrasts = pre-to-post change in control replicates *AND*
 
 Contrast of contrasts = pre-to-post change in control replicates *RELATIVE TO* pre-to-post change in treatment replicates. This is the contrast reflecting the treatment:phase interaction term.
 
-```{r step3d, message = FALSE}
+```{r step3e, message = FALSE}
 #Calculate estimated means (for plots), pre-to-post contrasts (for written results interpretation), and contrast of contrasts (for plots)
 emmeans_contrasts_network <- results_network %>%
   mutate(ggeffects = map(model, ~ggemmeans(., terms = c("exp_phase", "control_treatment"), back.transform = TRUE))) %>%
@@ -358,7 +374,7 @@ There are two ways that I like to visualize the interaction term of interest
 - These are the key plots for the main text. I will combine all specialization analyses - network, species, and individual-level - into one figure.
 
 Interaction plots
-```{r step3e, message = FALSE, fig.width=9, fig.height=12}
+```{r step3f, message = FALSE, fig.width=9, fig.height=12}
 interaction_plots_network <- emmeans_contrasts_network %>%
   mutate(interaction_plot = pmap(list(ggeffects, yvars), ~make_interaction_plot(ggeffects_df = ..1, yvar = ..2, ymax = 0.8))) %>%
   mutate(yvars = factor(yvars, levels = c("H2", "d", "species.specificity.index")))
@@ -372,7 +388,7 @@ interaction_multiplot_network_all <- ggarrange(plotlist = interaction_plots_netw
 interaction_multiplot_network_all
 ```
 
-```{r step 3f, fig.width=9, fig.height=9}
+```{r step 3g, fig.width=9, fig.height=9}
 #Make multiplot (GREH/VISA)
 interaction_plots_network_gv <- interaction_plots_network %>%
   filter(bird_groups == "greh_visa") %>%
@@ -383,7 +399,7 @@ interaction_multiplot_network_gv
 ```
 
 Contrast plot
-```{r step3g, message = FALSE}
+```{r step3h, message = FALSE}
 h2_label <- c(expression(atop(paste(italic(H[2])*"'"))))
 d_label <-  c(expression(atop(paste("mean "*italic(d)*"'"))))
 ssi_label <- c(expression(atop(paste("mean SSI"))))
@@ -397,9 +413,9 @@ contrast_plot_pollen <- contrasts_x2_network %>%
   coord_cartesian(ylim = c(0, 6), xlim = c(1, 3), clip = "off") +
   theme(plot.margin = unit(c(0, 0, 0.5, 3), "in"))  #Default plot margins in theme_bw are 1, 1, 0.5, 0.5 (top, right, bottom, left)
 
-#Contrast plot (VISITATION)
-contrast_plot_visitation <- contrasts_x2_network %>%
-  filter(analysis == "visitation") %>%
+#Contrast plot (CAMERA)
+contrast_plot_camera <- contrasts_x2_network %>%
+  filter(analysis == "camera") %>%
   make_contrast_plot(estimate_name = "odds.ratio", xaxis_name = "yvars", shading = "below") +
   scale_x_discrete("Specialization", labels = c(h2_label, d_label, ssi_label)) +
   scale_y_continuous(limits = c(0, 6), breaks = c(0, 0.5, 1, 2, 3, 4, 5, 6)) +
@@ -411,8 +427,8 @@ contrast_plot_visitation <- contrasts_x2_network %>%
   annotate("text",  x = 5.5, y = 2, size = 4, angle = 0, color = "black", label = c("Pre-to-post increase\nrelative to controls")) +
   annotate("text",  x = 5.5, y = 0.5, size = 4, angle = 0, color = "black", label = c("Pre-to-post decrease\nrelative to controls"))
 
-#Contrast plot (POLLEN + VISITATION)
-contrast_multiplot_network <- ggarrange(contrast_plot_pollen, contrast_plot_visitation, ncol = 2, align = "h", common.legend = TRUE, legend = c("top"))
+#Contrast plot (POLLEN + CAMERA)
+contrast_multiplot_network <- ggarrange(contrast_plot_pollen, contrast_plot_camera, ncol = 2, align = "h", common.legend = TRUE, legend = c("top"))
 ```
 
 ## Step 4: Analyze pollen richness
@@ -484,8 +500,20 @@ walk2(assumption_checks_richness$plotname2, assumption_checks_richness$dharma_pl
 walk2(assumption_checks_richness$plotname3, assumption_checks_richness$dharma_xvar_plot, ~ggsave(filename = .x, plot = .y, path = path_name, height = 11.5, width = 15, units = "in"))
 ```
 
+**Check for highly influential replicates**
+```{r step4d, message = FALSE, fig.show = 'hide', results = 'hide'}
+#Make plots of DFBETAS and Cook's distance
+influence_checks_richness <- models_richness %>%
+  mutate(influence_plot = pmap(list(model, data, title, subtitle), ~make_influence_plot(model = ..1, dataset = ..2, plot_title = ..3, plot_subtitle = ..4, group_id = "year_patch"))) %>%
+  mutate(plotname4 = paste("influence_diagnostics_individual_", model_number, ".png", sep = ""))
+
+#Export plots
+path_name <- c("../results/analyses_experiment/specialization/assumption_checks")
+walk2(influence_checks_richness$plotname4, influence_checks_richness$influence_plot, ~ggsave(filename = .x, plot = .y, path = path_name, height = 11.5, width = 15, units = "in", bg = "white"))
+```
+
 **Extract results**
-```{r step4d, message = FALSE}
+```{r step4e, message = FALSE}
 #Will also add information about sample size: total # of observations (rows), number of levels per random effect, and the number of replicates (split into 'control' vs. 'treatment')
 results_richness <- models_richness %>%
   mutate(summary = map(model, summary),
@@ -525,7 +553,7 @@ sample_size_richness <- results_richness %>%
 ```
 
 **Calculate estimated marginal means, control and treatment contrasts, and contrast of contrasts**
-```{r step4e, message = FALSE}
+```{r step4f, message = FALSE}
 #Calculate estimated means (for plots), pre-to-post contrasts (for written results interpretation), and contrast of contrasts (for plots)
 emmeans_contrasts_richness <- results_richness %>%
   mutate(ggeffects = map(model, ~ggemmeans(., terms = c("exp_phase", "control_treatment"), back.transform = TRUE))) %>%
@@ -558,7 +586,7 @@ contrasts_x2_richness <- emmeans_contrasts_richness %>%
 **Plot results**
 
 Interaction plots
-```{r step4f, message = FALSE, fig.width=9, fig.height=9}
+```{r step4g, message = FALSE, fig.width=9, fig.height=9}
 interaction_plots_richness <- emmeans_contrasts_richness %>%
   mutate(interaction_plot = pmap(list(ggeffects, yvars), ~make_interaction_plot(ggeffects_df = ..1, yvar = ..2, ymax = 4)))
 
@@ -571,7 +599,7 @@ interaction_multiplot_richness
 ```
 
 Contrast plot
-```{r step4g, message = FALSE, fig.width=6, fig.height=6}
+```{r step4h, message = FALSE, fig.width=6, fig.height=6}
 contrast_plot_richness <- contrasts_x2_richness %>%
   mutate(analysis = factor(analysis, levels = c("pollen_all_birds", "pollen_recaps"), labels = c("# morphotypes\n(all birds)", "# morphotypes\n(recaptures only)"))) %>%
   make_contrast_plot(estimate_name = "ratio", xaxis_name = "analysis", shading = "above") +
@@ -592,9 +620,9 @@ contrast_plot_pollen_network <- contrasts_x2_network %>%
   coord_cartesian(ylim = c(0, 4), xlim = c(1, 1), clip = "off") +
   theme(legend.position = "none")
 
-#Contrast plot (VISITATION, NETWORK-LEVEL)
-contrast_plot_visitation_network <- contrasts_x2_network %>%
-  filter(analysis == "visitation" & yvars == "H2") %>%
+#Contrast plot (CAMERA, NETWORK-LEVEL)
+contrast_plot_camera_network <- contrasts_x2_network %>%
+  filter(analysis == "camera" & yvars == "H2") %>%
   make_contrast_plot(estimate_name = "odds.ratio", xaxis_name = "yvars", shading = "below") +
   scale_x_discrete(labels = c(h2_label)) +
   scale_y_continuous(limits = c(0, 4), breaks = c(0, 0.5, 1, 2, 3, 4)) +
@@ -609,16 +637,16 @@ contrast_plot_pollen_species <- contrasts_x2_network %>%
   scale_y_continuous(limits = c(0, 6), breaks = c(0, 0.5, 1, 2, 3, 4, 5, 6)) +
   coord_cartesian(ylim = c(0, 6), xlim = c(1, 2), clip = "off")
 
-#Contrast plot (VISITATION, SPECIES-LEVEL)
-contrast_plot_visitation_species <- contrasts_x2_network %>%
-  filter(analysis == "visitation" & (yvars == "d" | yvars == "species.specificity.index")) %>%
+#Contrast plot (CAMERA, SPECIES-LEVEL)
+contrast_plot_camera_species <- contrasts_x2_network %>%
+  filter(analysis == "camera" & (yvars == "d" | yvars == "species.specificity.index")) %>%
   make_contrast_plot(estimate_name = "odds.ratio", xaxis_name = "yvars", shading = "below") +
   scale_x_discrete(labels = c(d_label, ssi_label)) +
   scale_y_continuous(limits = c(0, 6), breaks = c(0, 0.5, 1, 2, 3, 4, 5, 6)) +
   coord_cartesian(ylim = c(0, 6), xlim = c(1, 2), clip = "off")
 
 #Combine...
-contrast_multiplot_all_analyses <- ggarrange(contrast_plot_pollen_network, contrast_plot_visitation_network, contrast_plot_pollen_species, contrast_plot_visitation_species, contrast_plot_richness, common.legend = TRUE, ncol = 2, nrow = 3, legend = "bottom")
+contrast_multiplot_all_analyses <- ggarrange(contrast_plot_pollen_network, contrast_plot_camera_network, contrast_plot_pollen_species, contrast_plot_camera_species, contrast_plot_richness, common.legend = TRUE, ncol = 2, nrow = 3, legend = "bottom")
 contrast_multiplot_all_analyses
 ```
 
