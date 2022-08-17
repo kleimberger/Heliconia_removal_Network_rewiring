@@ -25,16 +25,27 @@ library(ggplot2)
 knitr::opts_chunk$set(tidy.opts=list(width.cutoff=80), tidy=TRUE) #If want to knit to PDF, need to worry about text getting cut off
 ```
 
-## Step 1: Import filtered video data
+## Step 1: Import data
 
-Different data were used for different analyses, so effort will vary depending on the particular dataset. Here, I am just interested in two main datasets:
+Different data were used for different analyses, so effort will vary depending on the particular dataset. Here, I am just interested in two main video datasets:
 
-1. Data for experiment. This dataset was created in a previous script (01).
+1. Video data for experiment. This dataset was created in a previous script (01).
 
-2. Data for 'normal' visitation. This is just the data from the 'pre' experimental period, so I will summarize data to level of experimental period (pre/post) and then just filter that summary.
+2. Video data for 'normal' visitation. This is just the data from the 'pre' experimental period, so I will summarize data to level of experimental period (pre/post) and then just filter that summary.
+
+For summarizing data for methods, I will also need the datasets for:
+
+- Camera set-up information, which includes camera locations (GPS coordinates)
+
 ```{r step1}
-#Data to analyze
+#Video data to analyze
 data_experiment <- read.csv("../data/export/intermediate/Camera_data_filtered_for_analysis.csv")
+
+#Camera location data
+camera_locations <- read.csv("../data/import/Camera_locations_2016-2018_20210705.csv")
+
+#Experimental timeline data (what happened on each day)
+exp_info <- read.csv("../data/import/Experiment_dates_2016-2018.csv")
 
 #Function to calculate basic summary stats (mean, median, etc.)
 source("../scripts/helper_functions/Calculate_basic_summary_stats.R")
@@ -206,9 +217,6 @@ head(replicates_per_species)
 
 **Effort summary from camera setup dataset (record of cameras installed)**
 ```{r step3b, message = FALSE}
-#Get camera location data
-camera_locations = read.csv("../data/import/Camera_locations_2016-2018_20210705.csv")
-
 #Number of cameras per replicate (there can be multiple plant species per camera)
 cameras_per_replicate_setup = camera_locations %>%
   distinct(year, patch, control_treatment, camera_number_video_data) %>%
@@ -404,4 +412,46 @@ check01 <- floral_array_species_supp %>%
 
 #Export
 write.csv(floral_array_species_supp, "../data/export/supp_tables/List_of_floral_array_species_for_Supplement.csv")
+```
+
+## Step 6: Calculate when floral arrays were established (i.e., how many days in advance of experiment start)
+
+Here, I will define the experiment start date as the first capture day (or first video day if there was no capture).
+
+Plants were brought in ahead of this date, on the 'setup' day (or first setup day when there was more than one; the second setup day was for camera setup).
+
+I need to calculate the number of days between floral array setup and the experiment start date.
+
+```{r step6, warning = FALSE}
+#Identify the start dates for each replicate. Start date is generally capture_1, expect in replicates without captures (2016 p204, p49). Note that experimental day numbering ('exp_day') column in dataset starts *after* capture day, so I need to update that column to actually identify the start date
+start_dates <- exp_info %>%
+  select(year, patch, control_trmt, exp_phase, date, exp_day) %>%
+  filter(exp_phase == "capture_1" | exp_phase == "capture_2" | exp_phase == "pre" | exp_phase == "post") %>%
+  mutate(date = lubridate::mdy(date)) %>%
+  arrange(year, patch, date) %>%
+  group_by(year, patch) %>%
+  mutate(exp_day_renumber = 1:length(year)) %>%
+  ungroup() %>%
+  filter(exp_day_renumber == 1) %>%
+  select(-exp_phase, -starts_with("exp_day")) %>%
+  rename(date_start = date)
+  
+#Identify the setup dates
+setup_dates <- exp_info %>%
+  select(year, patch, control_trmt, exp_phase, date, exp_day) %>%
+  filter(exp_phase == "setup" | exp_phase == "setup_1") %>%
+  mutate(date = lubridate::mdy(date)) %>%
+  select(-exp_phase, -exp_day) %>%
+  rename(date_setup = date)
+
+#Calculate days between setup and capture
+establishment_days <- start_dates %>%
+  left_join(setup_dates) %>%
+  mutate(days = date_start - date_setup) %>%
+  mutate(days = ifelse(is.na(days), 0, days)) %>%
+  mutate(days = as.numeric(days))
+
+#Summary stats on days between setup and capture
+establishment_days_sum <- calculate_basic_summary_stats(data = establishment_days, variable = days)
+establishment_days_sum
 ```
