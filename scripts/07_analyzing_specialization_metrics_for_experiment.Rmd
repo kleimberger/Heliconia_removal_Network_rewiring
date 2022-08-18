@@ -184,13 +184,23 @@ subset_data <- function(dataset, analysis, bird_group, yvar){
 #Default optimizer is nlminb; if convergence issues try alternative optimizer:
 #control=glmmTMBControl(optimizer=optim, optArgs=list(method="BFGS"))
 #If use eval(bquote(.(stuff you don't want quoted))), won't have garbled formula
-create_model <- function(dataset, yvar){
+create_model <- function(dataset, yvar, analysis = NA){
   
   #Individual specialization (# pollen morphotypes/bird)
   if(yvar == "num_morphotypes"){
     
-    model <- eval(bquote(glmmTMB(.(as.formula(paste(yvar, "~ control_treatment * exp_phase + (1|patch/year_patch)"))), data = dataset, na.action = na.omit, family = "truncated_genpois", control = glmmTMBControl(optimizer=optim, optArgs=list(method="BFGS")))))
-
+    if(analysis == "pollen_all_birds"){
+      
+      model <- eval(bquote(glmmTMB(.(as.formula(paste(yvar, "~ control_treatment * exp_phase + (1|patch/year_patch)"))), data = dataset, na.action = na.omit, family = "truncated_genpois", control = glmmTMBControl(optimizer=optim, optArgs=list(method="BFGS")))))
+      
+    }
+    
+    if(analysis == "pollen_recaps"){
+      
+      model <- eval(bquote(glmmTMB(.(as.formula(paste(yvar, "~ control_treatment * exp_phase + (1|patch/year_patch/bird_id)"))), data = dataset, na.action = na.omit, family = "truncated_genpois", control = glmmTMBControl(optimizer=optim, optArgs=list(method="BFGS")))))
+      
+    }
+    
   }
   
   #Species- and network-level specialization (H2, d, SSI)
@@ -466,7 +476,7 @@ model_fitting %>%
 **Create models**
 ```{r step4b, message = FALSE}
 models_richness <- data_richness %>%
-  mutate(model_quietly = pmap(list(data), quietly(function(a){model <- create_model(dataset = a, yvar = "num_morphotypes")})),
+  mutate(model_quietly = pmap(list(data, analysis), quietly(function(a, b){model <- create_model(dataset = a, analysis = b, yvar = "num_morphotypes")})),
          model = map(model_quietly, get_result),
          warning = map(model_quietly, get_warning), 
          convergence = map(model, check_convergence)) %>%
