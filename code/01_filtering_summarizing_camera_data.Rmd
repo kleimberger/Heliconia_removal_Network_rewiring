@@ -1,6 +1,11 @@
 ---
 title: "Filtering and summarizing camera data for analysis"
 output: html_document
+knit: (function(inputFile, encoding) {
+      out_dir <- "knitted_markdown_files";
+      rmarkdown::render(inputFile,
+                        encoding=encoding,
+                        output_dir=file.path(dirname(inputFile), out_dir))})
 ---
 
 ```{r setup, include=FALSE}
@@ -135,7 +140,7 @@ At this point it's also good to think ahead about the different datasets I'll ne
 Get files
 ```{r step4a}
 ## Source the summarizing function
-source("../scripts/helper_functions/Summarize_camera_data.R")
+source("../code/helper_functions/Summarize_camera_data.R")
 
 ## Get scientific names for birds and plants (not just abbreviations). Will add after summarizing 
 bird_names <- read.csv("../data/import/Hummingbird_codes_species_list.csv") %>%

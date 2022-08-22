@@ -1,6 +1,11 @@
 ---
 title: "Creating networks for each experimental period (pre and post) and calculating network metrics"
 output: html_document
+knit: (function(inputFile, encoding) {
+      out_dir <- "knitted_markdown_files";
+      rmarkdown::render(inputFile,
+                        encoding=encoding,
+                        output_dir=file.path(dirname(inputFile), out_dir))})
 ---
 
 **Overall goal**
@@ -18,7 +23,7 @@ Visualize the network and calculate network metrics of interest. These network m
 - Turnover metrics (Whittaker's beta diversity)
 - Sampling completeness (Chao1, ACE)
 
-```{r setup, include=FALSE}
+```{r setup, include = FALSE}
 library(dplyr)
 library(tidyr)
 library(purrr)
@@ -74,8 +79,8 @@ network_data <- data_cameras %>%
 
 **Since I need to make so many different networks, I've written some functions that I'll apply using purrr:map()**
 ```{r step2a, message = FALSE}
-#Functions to build networks and calculate metrics
-source("../scripts/helper_functions/Build_and_visualize_networks_for_experiment.R")
+source("../code/helper_functions/Build_and_visualize_networks_for_experiment.R")
+source("../code/helper_functions/Extract_data_from_safely_and_quietly_lists.R")
 
 #To preserve side effects (error/warning messages) while running these functions, I'll wrap functions in purrr::safely() and quietly, then extract the results
 
@@ -86,9 +91,6 @@ safe_specieslevel = safely(.f = calculate_specieslevel_metrics)
 #quietly() returns results and warnings
 quiet_networklevel = quietly(.f = calculate_networklevel_metrics) 
 quiet_specieslevel = quietly(.f = calculate_specieslevel_metrics)
-
-#Functions to extract the results from safely/quitely
-source("../scripts/helper_functions/Extract_data_from_safely_and_quietly_lists.R")
 ```
 
 ```{r step2b, include = FALSE}
@@ -113,11 +115,12 @@ visualize_network(test_matrix_pollen, method_name = "pollen", label_heto = TRUE)
 ```{r step2c, message = FALSE, warning = FALSE, results = 'hide', fig.show = 'hide'}
 #This table will be filled in with networks, one network per row
 base_table <- network_data %>%
-  distinct(sampling_method, year, patch, year_patch, control_treatment, exp_phase)
+  distinct(sampling_method, year, patch, year_patch, control_treatment, exp_phase) %>% 
+  tibble()
 
 #1. Subset data to replicate, period, and sampling method
 #2. Create matrix
-#3. Remove networks any without matrices
+#3. Remove networks any without matrices. For some reason, is.null doesn't work (gets rid of all rows)
 #4. Visualize networks,  using recordPlot to save the graphic
 #5. Remove unneeded columns
 network_results <- base_table %>%
@@ -125,10 +128,10 @@ network_results <- base_table %>%
   mutate(matrix_safely = map(data, ~safe_matrix(data = ., interaction_column = "interaction_frequency")),
          matrix_error = map(matrix_safely, get_error),
          matrix = map(matrix_safely, get_result)) %>%
-  filter(matrix_error == "NULL") %>%
+  filter(lengths(matrix_error) == 0) %>%
   mutate(network_plot = map2(matrix, sampling_method, ~visualize_network(matrix = .x, method_name = .y, label_heto = TRUE))) %>%
-  mutate(rowname = 1:length(year)) %>%
-  mutate(plotname = paste(paste(rowname, year, patch, exp_phase, sep = "_"), ".png", sep = "")) %>%
+  mutate(row_id = row_number()) %>%
+  mutate(plotname = paste(paste(row_id, sampling_method, year, patch, exp_phase, sep = "_"), ".png", sep = "")) %>%
   select(-contains("safely"), -contains("quietly"))
 ```
 
@@ -155,10 +158,10 @@ networklevel_warnings <- specialization_results %>%
   filter(grepl("Web is really too small", networklevel_warning, fixed = FALSE))
 
 specieslevel_errors <- specialization_results %>%
-  filter(specieslevel_error != "NULL")
+  filter(lengths(specieslevel_error) != 0)
 
 specieslevel_warnings <- specialization_results %>%
-  filter(specieslevel_warning != "NULL")
+  filter(lengths(specieslevel_warning) != 0)
 ```
 
 **Extract and organize specialization results**
@@ -253,12 +256,11 @@ The betalinkr function is developed by Jochen Fruend and partitions dissimilarit
 
 **Prepare to calculate turnover metrics, binary and quantitative**
 ```{r step4a, message = FALSE}
-#To compute binary AND quantitative indices
-binary = c(TRUE, FALSE)
-
 #1. Make a table where pre matrix and post matrix each have a column
 #2. Remove replicates that do not have networks pre AND post
-#3. Prepare to compute binary AND quantitaive indices
+#3. Prepare to compute binary AND quantitative indices
+binary = c(TRUE, FALSE)
+
 base_table_turnover <- network_results %>%
   select(sampling_method, year, patch, year_patch, control_treatment, exp_phase, matrix) %>% 
   pivot_wider(values_from = matrix, names_from = exp_phase) %>%
@@ -282,13 +284,9 @@ Notes about betalinkr:
 
 ```{r step4b, message = FALSE, warning = FALSE}
 turnover_results <- base_table_turnover %>%
-  mutate(array = map2(pre, post, ~bipartite::webs2array(list(.x, .y)))) %>%
-  mutate(betalink_fruend = map2(array, binary, ~bipartite::betalinkr(.x, partitioning = "commondenom", index = "bray", partition.st = FALSE, partition.rr = FALSE, binary = .y))) %>% 
-  mutate(betalink_poisot = map2(array, binary,  ~bipartite::betalinkr(.x, partitioning = "poisot", index = "bray", partition.st = FALSE, partition.rr = FALSE, binary = .y, distofempty = "na"))) 
-
-#Testing out the different settings for partitioning...
-(test01 = bipartite::betalinkr(bipartite::webs2array(base_table_turnover$pre[[1]], base_table_turnover$post[[1]]), partitioning = "commondenom", index = "bray", binary = TRUE))
-(test02 = bipartite::betalinkr(bipartite::webs2array(base_table_turnover$pre[[1]], base_table_turnover$post[[1]]), partitioning = "poisot", index = "bray", binary = TRUE))
+  mutate(array = map2(pre, post, ~webs2array(list(.x, .y)))) %>%
+  mutate(betalink_fruend = map2(array, binary, ~betalinkr(.x, partitioning = "commondenom", index = "bray", partition.st = FALSE, partition.rr = FALSE, binary = .y))) %>%
+  mutate(betalink_poisot = map2(array, binary, ~betalinkr(.x, partitioning = "poisot", index = "bray", partition.st = FALSE, partition.rr = FALSE, binary = .y, distofempty = "na")))
 ```
 
 **Extract results**
@@ -330,7 +328,7 @@ network_results_camera <- base_table %>%
   mutate(matrix_safely = map(data, ~safe_matrix(data = ., interaction_column = "sightings")),
          matrix_error = map(matrix_safely, get_error),
          matrix = map(matrix_safely, get_result)) %>%
-  filter(matrix_error == "NULL")
+  filter(lengths(matrix_error) == 0)
 
 #1. Replace camera networks in original network results
 #2. Calculate sampling completeness (automatically returns two metrics: Chao1 and ACE)
@@ -359,6 +357,6 @@ write.csv(specialization_results_for_analysis, "../data/export/for_analysis/Netw
 write.csv(turnover_results_for_analysis, "../data/export/for_analysis/Network_dissimilarity_for_analysis.csv")
 write.csv(completeness_results_for_analysis, "../data/export/for_analysis/Sampling_completeness_for_analysis.csv")
 
-setwd("../results/figures/pre_post_networks_experiment")
-walk2(network_results$plotname, network_results$network_plot, ~ggplot2::ggsave(filename = .x, plot = .y, height = 12, width = 10, bg = "white", device = "png"))
+path_name <- c("../results/network_visualizations/pre_post_networks_experiment")
+walk2(network_results$plotname, network_results$network_plot, ~ggplot2::ggsave(filename = .x, path = path_name, plot = .y, height = 12, width = 10, bg = "white", device = "png"))
 ```

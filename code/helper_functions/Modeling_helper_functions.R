@@ -68,8 +68,7 @@ make_dharma_xvar_plot <- function(predictor_table, dataset, dharma_object, plot_
   #Internal function to make plots for each predictor
   make_plot = function(xvar){
     
-    xvar <- sym(xvar)
-    xvar_column <- dataset %>% pull(!!xvar) #Pull is equivalent to dollar sign. Returns vector with length > 1
+    xvar_column <- dataset %>% pull({{ xvar }}) #Pull is equivalent to dollar sign. Returns vector with length > 1
     plotResiduals(dharma_object$scaledResiduals, as.factor(xvar_column))
     mtext(paste(xvar), side = 1, line = 4, font = 2)
     plot <- recordPlot() #Need to use recordPlot because base R plots cannot be stored (return NULL)

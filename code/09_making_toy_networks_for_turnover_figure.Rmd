@@ -1,6 +1,11 @@
 ---
 title: "Making toy networks for turnover figure"
 output: html_document
+knit: (function(inputFile, encoding) {
+      out_dir <- "knitted_markdown_files";
+      rmarkdown::render(inputFile,
+                        encoding=encoding,
+                        output_dir=file.path(dirname(inputFile), out_dir))})
 ---
 
 **Goal**
@@ -8,10 +13,11 @@ output: html_document
 Make demo networks to help communicate each component of network dissimilarity (total, species turnover, and 'rewiring')
 
 ```{r setup, include = FALSE}
-library(bipartite)
 library(vegan)
 library(dplyr)
 library(tidyr)
+library(bipartite)
+
 ```
 
 ## Step 1: Make up some data
@@ -61,13 +67,13 @@ How many interactions in each network?
 plotweb(before_matrix, method = "normal", arrow = "no", low.lablength = 0, high.lablength = 0) 
 
 network_before <- recordPlot() #from package grDevices
-png("../results/analyses_experiment/interaction_turnover/figures/Toy_network_before_bw.png", width = 12, height = 10, res = 300, units = "in")
+png("../results/network_visualizations/toy_networks/Toy_network_before_bw.png", width = 12, height = 10, res = 300, units = "in")
 network_before
 dev.off()
 
 plotweb(after_matrix, method = "normal", arrow = "no", low.lablength = 0, high.lablength = 0)
 network_after <- recordPlot() #from package grDevices
-png("../results/analyses_experiment/interaction_turnover/figures/Toy_network_after_bw.png", width = 12, height = 10, res = 300, units = "in")
+png("../results/network_visualizations/toy_networks/Toy_network_after_bw.png", width = 12, height = 10, res = 300, units = "in")
 network_after
 dev.off()
 
@@ -100,7 +106,7 @@ before_and_after_matrix_coded
 
 Calculate betalink metrics for these networks
 ```{r}
-webs_array <- bipartite::webs2array(before_matrix, after_matrix)
+webs_array <- webs2array(list(before_matrix, after_matrix))
 betalink <- betalinkr(webs_array, partitioning = "commondenom", index = "bray", partition.st = TRUE, partition.rr = FALSE, binary = TRUE)
 
 betalink_df <- as.data.frame(t(betalink))
@@ -113,7 +119,7 @@ betalink_df$ST + betalink_df$OS
 
 Highlight interactions that were lost/gained
 ```{r}
-colors <- RColorBrewer::brewer.pal(6, "Paired")[-c(3:4)]
+colors <- c("#6D80EB", "#0E0D37", "#E06F81", "#BA0022") #light blue, dark blue, light red, dark red
 
 matrix_binary = before_and_after_matrix
 matrix_coded = before_and_after_matrix_coded
@@ -128,7 +134,7 @@ plotweb(matrix_binary, method="normal", arrow="no",
 
 
 network_WN <- recordPlot() #from package grDevices
-png("../results/analyses_experiment/interaction_turnover/figures/Toy_network_WN_color_coded.png", width = 12, height = 10, res = 300, units = "in")
+png("../results/network_visualizations/toy_networks/Toy_network_WN_color_coded.png", width = 12, height = 10, res = 300, units = "in")
 network_WN
 dev.off()
 ```
@@ -141,7 +147,7 @@ plotweb(matrix_binary, method="normal", arrow="no",
                                    ifelse(matrix_coded[,] == 3,  adjustcolor(colors[[2]], alpha.f = 1), "grey80")))) #gain (species turnover)
 
 network_ST <- recordPlot() #from package grDevices
-png("../results/analyses_experiment/interaction_turnover/figures/Toy_network_ST_color_coded.png", width = 12, height = 10, res = 300, units = "in")
+png("../results/network_visualizations/toy_networks/Toy_network_ST_color_coded.png", width = 12, height = 10, res = 300, units = "in")
 network_ST
 dev.off()
 ```
@@ -154,7 +160,7 @@ plotweb(matrix_binary, method="normal", arrow="no",
                                    ifelse(matrix_coded[,] == 5,  adjustcolor(colors[[4]], alpha.f = 1), "grey80")))) #gain (rewiring)
  
 network_OS <- recordPlot() #from package grDevices
-png("../results/analyses_experiment/interaction_turnover/figures/Toy_network_OS_color_coded.png", width = 12, height = 10, res = 300, units = "in")
+png("../results/network_visualizations/toy_networks/Toy_network_OS_color_coded.png", width = 12, height = 10, res = 300, units = "in")
 network_OS
 dev.off()
 ```

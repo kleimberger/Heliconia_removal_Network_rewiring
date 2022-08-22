@@ -1,6 +1,11 @@
 ---
 title: "Analyzing sampling completeness"
 output: html_document
+knit: (function(inputFile, encoding) {
+      out_dir <- "knitted_markdown_files";
+      rmarkdown::render(inputFile,
+                        encoding=encoding,
+                        output_dir=file.path(dirname(inputFile), out_dir))})
 ---
 
 **Goals**
@@ -17,8 +22,8 @@ To explore this possibility for each sampling method, here I:
 
 I conclude that:
 
-1. Sampling completeness was higher for visitation networks, which were sampled through an array of trail cameras.
-2. For pollen networks, pre-to-post sampling completeness was lower in treatment replicates than in control replicates, introducing systematic sampling bias. **Therefore, for the analysis of interaction turnover, I will only analyze visitation networks.**
+1. Sampling completeness was higher for visitation (camera) networks, which were sampled through an array of trail cameras.
+2. For pollen networks, pre-to-post sampling completeness was lower in treatment replicates than in control replicates, introducing systematic sampling bias. **Therefore, for the analysis of interaction turnover, I will only analyze camera networks.**
 
 ```{r setup, include=FALSE}
 library(dplyr)
@@ -48,8 +53,8 @@ completeness_with_without_outliers <- completeness %>%
   bind_rows(completeness)
 
 #Functions
-source("../scripts/helper_functions/Calculate_basic_summary_stats.R")
-source("../scripts/helper_functions/Transform_proportion_for_betareg.R")
+source("../code/helper_functions/Calculate_basic_summary_stats.R")
+source("../code/helper_functions/Transform_proportion_for_betareg.R")
 ```
 
 ## Step 2: Summarize sampling completeness
@@ -58,7 +63,7 @@ completeness_sum <- completeness_with_without_outliers %>%
   group_by(sampling_method, outliers) %>%
   calculate_basic_summary_stats(variable = completeness.chao1) %>% 
   ungroup() %>%
-  mutate_if(is.numeric, ~round(., digits = 3))
+  mutate_if(is.numeric, ~round(., digits = 2))
 
 completeness_sum
 ```
@@ -71,10 +76,10 @@ data_for_plot <- completeness_with_without_outliers %>%
   mutate(outlier_indicator = ifelse(sampling_method == "visitation" & (year_patch == "2017_130" | year_patch == "2017_24"), "outlier", "not_outlier")) %>%
   mutate(control_treatment = factor(control_treatment, levels = c("control", "treatment"), labels = c("Control", "Treatment"))) %>%
   mutate(exp_phase = factor(exp_phase, levels = c("pre", "post"), labels = c("Pre", "Post"))) %>%
-  mutate(sampling_method = factor(sampling_method, levels = c("pollen", "visitation"), labels = c("Pollen", "Visitation")))
+  mutate(sampling_method = factor(sampling_method, levels = c("pollen", "visitation"), labels = c("Pollen", "Camera")))
 
 #Make plot
-colors <- c("#0E0D37", "#BA0022")
+colors <- c("#0E0D37", "#BA0022") #dark blue, dark red
 
 chao1_plot <- data_for_plot %>%
   ggplot(data = ., aes(x = exp_phase, y = completeness.chao1)) +
@@ -137,17 +142,17 @@ calculate_contrasts <- function(model){
 }
 
 completeness_contrasts <- tibble(model_number = c(1, 2, 3),
-                                 model_name = c("Pollen", "Visitation", "Visitation (without outliers)"),
+                                 model_name = c("Pollen", "Camera", "Camera (without outliers)"),
                                  model = list(model_pollen, model_camera, model_camera_without_outliers)) %>%
   mutate(contrasts = purrr::map(model, calculate_contrasts)) %>%
   unnest(contrasts) %>%
-  mutate_if(is.numeric, ~round(., digits = 3)) %>%
+  mutate_if(is.numeric, ~round(., digits = 2)) %>%
   select(-model)
 ```
 
 ## Step 5: Export results
 ```{r step5}
-path_name <- c("../results/analyses_experiment/interaction_turnover")
+path_name <- c("../results/analyses_sampling_completeness")
 write.csv(completeness_sum, file.path(path_name, "tables/Sampling_completeness_summary.csv"))
 write.csv(completeness_contrasts, file.path(path_name, "tables/Sampling_completeness_contrasts.csv"))
 ggsave(file.path(path_name, "figures/Sampling_completeness_plot.png"), plot = chao1_plot, width = 7, height = 7, units = "in", dpi = 300)

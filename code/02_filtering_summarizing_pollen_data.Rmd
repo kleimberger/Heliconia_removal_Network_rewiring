@@ -1,6 +1,11 @@
 ---
 title: "Filtering and summarizing pollen data for analysis"
 output: html_document
+knit: (function(inputFile, encoding) {
+      out_dir <- "knitted_markdown_files";
+      rmarkdown::render(inputFile,
+                        encoding=encoding,
+                        output_dir=file.path(dirname(inputFile), out_dir))})
 ---
 
 ```{r setup, include=FALSE}
