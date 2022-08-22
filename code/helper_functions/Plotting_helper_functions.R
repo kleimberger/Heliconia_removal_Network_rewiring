@@ -3,11 +3,10 @@
 ############################
 #Plot estimated marginals means for:
 #control pre, control post, treatment pre, treatment post
-make_interaction_plot <- function(ggeffects_df, yvar, ymax, quick_plot = FALSE){
+make_interaction_plot <- function(ggeffects_df, yvar, ymax){
   
   #Colors and shapes
-  #colors <- c("#0E0D37", "#BA0022") #blue, red
-  colors <- c("#1F78B4", "#E31A1C") #blue, red (from paired palette)
+  colors <- c("#0E0D37", "#BA0022") #blue, red
   shapes <- c(16, 17) #circle, triangle (filled)
   
   #Label for y-axis
@@ -23,19 +22,6 @@ make_interaction_plot <- function(ggeffects_df, yvar, ymax, quick_plot = FALSE){
   #Group/legend labels
   group_labels <- c("control" = "Control", "treatment" = "Treatment")
   legend_label <- c(expression(paste(italic("Heliconia "), "removal", sep = "")))
-  
-  #Quick plot from ggeffects package
-  if(quick_plot == TRUE){
-    
-    quick_plot <- plot(ggeffects_df,
-                       connect.lines = TRUE,
-                       colors = colors,
-                       show.title = FALSE) +
-      labs(x = "Experimental period", y = ylabel, colour = "")
-    
-    return(quick_plot)
-    
-  }
  
   #Plotting by hand for increased customizability
   plot <- ggeffects_df %>%
@@ -91,27 +77,24 @@ make_control_vs_treatment_plot <- function(ggeffects_df, yvar, ymax){
 ###########################################################
 #Will need to customize axes, etc. separately, but this will make the basic plot
 #estimate_name = name of the column that has the point estimate (e.g., odds.ratio, ratio, etc.)
-make_contrast_plot <- function(contrasts_x2_df, estimate_name, xaxis_name, shading = "none"){
-  
-  estimate_name <- sym(estimate_name)
-  xaxis_name <- sym(xaxis_name)
+make_contrast_plot <- function(contrasts_df, xvar, shading = "none"){
   
   legend_text_labels <- c(expression("All species"), expression(paste(italic("Heliconia "), "specialists", sep = "")))
   
-  plot_data <- contrasts_x2_df %>%
-    mutate(order = 1:length(!!xaxis_name))
+  plot_data <- contrasts_df %>%
+    mutate(order = 1:length({{ xvar }}))
   
   if(shading == "below"){
     
     plot <- plot_data %>%
-      ggplot(data = ., aes(x = forcats::fct_reorder(!!xaxis_name, order), y = !!estimate_name, shape = bird_groups)) +
+      ggplot(data = ., aes(x = forcats::fct_reorder(.data[[xvar]], order), y = ratio, shape = bird_group)) +
         geom_rect(xmax = Inf, xmin = -Inf, ymax = 1, ymin = 0, fill = "grey90", alpha = 1)
   }
   
   if(shading == "above"){
     
     plot <- plot_data %>%
-      ggplot(data = ., aes(x = forcats::fct_reorder(!!xaxis_name, order), y = !!estimate_name, shape = bird_groups)) +
+      ggplot(data = ., aes(x = forcats::fct_reorder(.data[[xvar]], order), y = ratio, shape = bird_group)) +
         geom_rect(xmax = Inf, xmin = -Inf, ymax = Inf, ymin = 1, fill = "grey90", alpha = 1)
     
   }
@@ -119,19 +102,19 @@ make_contrast_plot <- function(contrasts_x2_df, estimate_name, xaxis_name, shadi
   if(shading == "none"){
     
     plot <- plot_data %>%
-      ggplot(data = ., aes(x = forcats::fct_reorder(!!xaxis_name, order), y = !!estimate_name, shape = bird_groups))
+      ggplot(data = ., aes(x = forcats::fct_reorder(.data[[xvar]], order), y = ratio, shape = bird_group))
     
   }
   
   plot <- plot +
       geom_point(position = position_dodge(.5), size = 3) +
-      geom_errorbar(position = position_dodge(.5), aes(ymax = upperCI, ymin = lowerCI), width = 0.25, size = 1) + # error bars show 95% confidence intervals
+      geom_errorbar(position = position_dodge(.5), aes(ymax = upper.CL, ymin = lower.CL), width = 0.25, size = 1) + # error bars show 95% confidence intervals
       geom_hline(yintercept = 1, color = "black", linetype = "dashed", alpha = 0.8) + # add a line at 1 (no effect)
       theme_bw(base_size = 18) +
       scale_shape_manual(values = c(16, 17), labels = legend_text_labels, limits = c("all_spp", "greh_visa")) +
-      theme(legend.position = "top", legend.justification = "center",
+      theme(legend.position = "top", legend.justification = "center", legend.text = element_text(size = 18), legend.title = element_text(size = 18),
             panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-      labs(x = "", y = "Change ratio", shape = "Bird group")
+      labs(x = "", y = "Ratio", shape = "Bird group")
     
   return(plot)
   

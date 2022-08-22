@@ -1,6 +1,11 @@
 ---
 title: "Analyzing how sampling method affects estimates of specialization"
 output: html_document
+knit: (function(inputFile, encoding) {
+      out_dir <- "knitted_markdown_files";
+      rmarkdown::render(inputFile,
+                        encoding=encoding,
+                        output_dir=file.path(dirname(inputFile), out_dir))})
 ---
 
 **Overall questions:**
@@ -71,9 +76,9 @@ data_long <- data %>%
   pivot_longer(cols = c("pollen", "visitation"), names_to = "sampling_method")
 
 #Functions
-source("../scripts/helper_functions/Calculate_basic_summary_stats.R")
-source("../scripts/helper_functions/Transform_proportion_for_betareg.R")
-source("../scripts/helper_functions/Modeling_helper_functions.R")
+source("../code/helper_functions/Calculate_basic_summary_stats.R")
+source("../code/helper_functions/Transform_proportion_for_betareg.R")
+source("../code/helper_functions/Modeling_helper_functions.R")
 ```
 
 ## Step 2: Are camera networks more specialized than pollen networks?
@@ -280,7 +285,7 @@ results_confint <- results %>%
 results_tidy_confint <- results_tidy %>%
   left_join(results_confint) %>%
   mutate_at(vars(estimate, lowerCI, upperCI), .funs = list(exp = ~ifelse(effect == "fixed", exp(.), NA))) %>% 
-  mutate_at(vars(estimate, std.error, statistic, lowerCI, upperCI, estimate_exp, lowerCI_exp, upperCI_exp), ~round(., digits = 2)) %>%
+  mutate_at(vars(estimate, std.error, statistic, lowerCI, upperCI, estimate_exp, lowerCI_exp, upperCI_exp, p.value), ~round(., digits = 2)) %>%
   mutate(pvalue_round = format.pval(pv = p.value, digits = 2, eps = 0.001)) %>%
   select(model_number:term, estimate, lowerCI, upperCI, statistic, pvalue_round, pvalue = p.value, std_error = std.error, everything())
 ```
@@ -388,7 +393,7 @@ correlation_results_plots <- correlation_predictions %>%
 ```
 
 ## Step 5: Combine specialization and correlation results into one plot
-```{r step5, message = FALSE, warning = FALSE}
+```{r step5, message = FALSE, warning = FALSE, fig.width = 8, fig.height = 11}
 all_results <- bind_rows(specialization_results_plots, correlation_results_plots) %>%
   mutate(metric = factor(metric, levels = c("H2", "d", "species.specificity.index"))) %>%
   arrange(metric, model_number)
@@ -406,5 +411,5 @@ ggsave("../results/analyses_sampling_method/figures/Sampling_method_results_mult
 #Q1
 write.csv(specialization_emmeans, "../results/analyses_sampling_method/tables/Specialization_results_emmeans.csv")
 write.csv(specialization_contrasts, "../results/analyses_sampling_method/tables/Specialization_results_contrasts.csv") 
-ggsave("../results/analyses_sampling_method/figures/Specialization_density_plot.png", specialization_density_plot, dpi = 300, units = "in", width = 9, height = 5)
+ggsave("../results/analyses_sampling_method/figures/Sampling_method_specialization_density_plot.png", specialization_density_plot, dpi = 300, units = "in", width = 9, height = 5)
 ```

@@ -1,6 +1,11 @@
 ---
 title: "Summarizing video effort and camera methods"
 output: html_document
+knit: (function(inputFile, encoding) {
+      out_dir <- "knitted_markdown_files";
+      rmarkdown::render(inputFile,
+                        encoding=encoding,
+                        output_dir=file.path(dirname(inputFile), out_dir))})
 ---
 
 **Overall goals:**
@@ -48,7 +53,7 @@ camera_locations <- read.csv("../data/import/Camera_locations_2016-2018_20210705
 exp_info <- read.csv("../data/import/Experiment_dates_2016-2018.csv")
 
 #Function to calculate basic summary stats (mean, median, etc.)
-source("../scripts/helper_functions/Calculate_basic_summary_stats.R")
+source("../code/helper_functions/Calculate_basic_summary_stats.R")
 ```
 
 ## Step 2: Calculate video effort (video hours) per replicate

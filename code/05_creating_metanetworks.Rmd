@@ -1,6 +1,11 @@
 ---
 title: "Visualizing plant-hummingbird meta-networks"
 output: html_document
+knit: (function(inputFile, encoding) {
+      out_dir <- "knitted_markdown_files";
+      rmarkdown::render(inputFile,
+                        encoding=encoding,
+                        output_dir=file.path(dirname(inputFile), out_dir))})
 ---
 
 **Goal**
@@ -75,7 +80,7 @@ rownames(camera_matrix) <- as.character(camera_data_wide$plant_scientific_name)
 ## Step 2: Visualize pollen metanetwork
 ```{r step2, fig.width=12, fig.height=10, results = 'hide'}
 #Highlight color 
-red = "#E31A1C"
+red = "#BA0022"
 
 #Italics
 graphics::par(font = 3)

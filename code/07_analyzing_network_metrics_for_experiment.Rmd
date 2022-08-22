@@ -1,0 +1,747 @@
+---
+title: "Analyzing metrics of ecological specialization and interaction turnover"
+output: html_document
+knit: (function(inputFile, encoding) {
+      out_dir <- "knitted_markdown_files";
+      rmarkdown::render(inputFile,
+                        encoding=encoding,
+                        output_dir=file.path(dirname(inputFile), out_dir))})
+---
+
+**Goal:**
+
+Assess whether hummingbirds rewired to use alternative resources after Heliconia removal
+
+If hummingbirds rewired, then ecological specialization should decrease at multiple levels (i.e., network, species, and individual). This would be indicated by:
+
+- an increase in niche breadth (i.e., a *DECREASE* in the Species Specificity Index)
+- a corresponding increase in niche overlap (i.e., a *DECREASE* in reciprocal specialization measured by H2 and d')
+- an *INCREASE* in the number of pollen morphotypes per hummingbird
+
+Additionally, we should see rearrangements in the underlying network structure (pairwise interactions). This would by indicated by:
+
+- an *INCREASE* in interaction turnover, aka network dissimilarity
+
+**Approach**
+
+ECOLOGICAL SPECIALIZATION
+
+For all response variables, will text for treatment effect using a statistical interaction between control/treatment and experimental period (pre/post).
+
+1. Network metrics (H2, d', SSI)
+
+- Values range from 0-1
+- Will analyze using GLMMs (beta regression)
+- Network-level specialization = H2
+- Species-level specialization = mean d', mean SSI
+  * I'll analyze for each hummingbird group: all species and *Heliconia* specialists (green hermits & violet sabrewings) separately
+
+2. Number of pollen morphotypes
+
+- Values range from 1-8, since birds with no pollen have already been removed
+- Will analyze using GLMMs (truncated Poisson or similar count distribution; will choose most appropriate distribution based on AICc)
+- I'll analyze for each hummingbird group: all species and *Heliconia* specialists (green hermits & violet sabrewings) separately
+- I'll also analyze recaps separately from all of the individual birds captured. Here, "recap" = bird caught during the pre AND the post period
+
+INTERACTION TURNOVER
+
+Using the 'betalinkr' function of the 'bipartite' R package, examine overall network dissimilarity and its two additive subcomponents: changes in interactions due to species gain/loss and changes in interactions among species present during both experimental periods (pre and post).
+
+That is, 
+
+    INTERACTION TURNOVER (total) = SPECIES TURNOVER + INTERACTION RESHUFFLING 
+
+Or, using the abbreviations of the package creators, 
+
+    WN (whole network) = ST (species turnover) + OS (only shared, aka 'rewiring')
+    
+*Note that 'rewiring' in the context of the betalinkr function (rearrangement of interactions, not including gaining/losing species) is a more specific term than 'rewiring' in the general sense of behavioral flexibility (which often does include gaining/losing species).*
+
+Other notes:
+
+- Due to potential differences in pre-to-post sampling completeness for pollen networks (script 08), will only analyze turnover for the visitation networks
+- Will focus on binary versions of network dissimilarity, due to ease of interpretation (e.g., presence/absence of a given interaction or species). However, I will still analyze  quantitative versions of metrics for the supplement.
+
+```{r setup, include = FALSE}
+library(tidyr)
+library(dplyr)
+library(purrr)
+library(glmmTMB)
+library(DHARMa)
+library(ggplot2)
+library(ggpubr)
+library(emmeans)
+library(ggeffects)
+
+#Set up parallel processing (influence checks take a while to run!)
+library(future)
+plan(multisession)
+
+#Set seed to make code reproducible
+set.seed(1)
+```
+
+## Step 1: Import functions and datasets for analysis
+
+**Custom functions**
+```{r step1a}
+source("../code/helper_functions/Transform_proportion_for_betareg.R")
+source("../code/helper_functions/Modeling_helper_functions.R")
+source("../code/helper_functions/Plotting_helper_functions.R")
+source("../code/helper_functions/Extract_data_from_safely_and_quietly_lists.R")
+```
+
+Network metrics and pollen richness (# morphotypes/bird) have already been caculated in earlier sctipts
+
+**Get specialization network metrics** (pollen and camera)
+```{r step1b, message = FALSE}
+#1. Get data
+#2. Remove replicates than don't have a complete pre-post pair (column indicating this added in earlier step)
+#3. Remove highly influential points (2016_60, 2018_60) - both of these networks have compartments of species entirely unconnected to rest of network
+specialization_network_data <- read.csv("../data/export/for_analysis/Network_specialization_for_analysis.csv") %>%
+  mutate(year_patch = paste(year, patch, sep = "_")) %>%
+  filter(is.na(unpaired)) %>%
+  filter(year_patch != "2016_60") %>%
+  filter(year_patch != "2018_60") %>%
+  select(sampling_method, bird_group, year, year_patch, everything(), -X, -unpaired) %>%
+  mutate(analysis = "specialization_network")
+```
+
+**Get data for individual specialization** (i.e., # pollen morphotypes/hummingbird, pollen only)
+```{r step1c, message = FALSE}
+#1. Get data
+specialization_individual_data <- read.csv("../data/export/for_analysis/Pollen_data_summarized_for_pp_richness.csv") %>%
+  select(-X) %>%
+  mutate(year_patch = paste(year, patch, sep = "_"))
+
+#2. Remove replicates that don't have a complete pre-post pair
+#Note: by definition, recaps are present pre and post, so if there's a recap then the replicate is automatically considered 'complete'
+unpaired_replicates <- specialization_individual_data %>%
+  distinct(year, patch, year_patch, exp_phase) %>%
+  group_by(year, patch, year_patch) %>%
+  summarise(num_phases = n()) %>%
+  ungroup() %>%
+  filter(num_phases < 2) %>%
+  mutate(include = "no")
+
+#2. Remove replicates that don't have a complete pre-post pair
+#3. Rename columns to match other datasets
+specialization_individual_data <- specialization_individual_data %>%
+  left_join(unpaired_replicates) %>%
+  filter(is.na(include)) %>%
+  select(year, patch, year_patch, everything(), -include, -num_phases) %>%
+  mutate(exp_phase = factor(exp_phase, levels = c("capture_1", "capture_2"), labels = c("pre", "post"))) %>%
+  rename(value = num_morphotypes) %>%
+  mutate(metric = "num_morphotypes", 
+         sampling_method = "pollen",
+         analysis = "specialization_individual")
+```
+
+**Get turnover network metrics**  (camera only)
+```{r step 1d, message = FALSE}
+#1. Get data
+#2. Filter to visitation data, not pollen networks
+#3. Remove outliers for sampling completeness identified in previous script; sampling completeness varies pre-to-post for these replicates
+#4. Convert to long-form, rather than having one column per metric
+turnover_data <- read.csv("../data/export/for_analysis/Network_dissimilarity_for_analysis.csv") %>%
+  select(-X, -S, -OS.poisot) %>%
+  mutate(year_patch = paste(year, patch, sep = "_")) %>%
+  filter(sampling_method == "visitation") %>%
+  filter(year_patch != "2017_130") %>%
+  filter(year_patch != "2017_24") %>%
+  pivot_longer(cols = c(WN, ST, OS), names_to = "metric", values_to = "value") %>%
+  mutate(analysis = "turnover")
+```
+
+**Combine data into one dataset that I'll filter for analysis**
+```{r step 1e, message = FALSE}
+data_for_analysis <- specialization_network_data %>%
+  bind_rows(specialization_individual_data) %>%
+  bind_rows(turnover_data) %>%
+  select(analysis, sampling_method, bird_group, recap_y_n, binary, metric, value, everything()) %>%
+  mutate(exp_phase = factor(exp_phase, levels = c("pre", "post"))) %>%
+  mutate(sampling_method = ifelse(sampling_method == "visitation", "camera", sampling_method))
+```
+
+## Step 2: Get organized
+
+**Get organized**
+
+Since I'll have quite a few models, I want to store them all in tibbles to stay organized
+```{r step2a, message = FALSE}
+analysis <- c("specialization_network", "specialization_individual", "turnover")
+sampling_method <- c("pollen", "camera") 
+bird_group <- c("all_spp", "greh_visa")
+
+#Assign analysis subtypes to two analyses: pollen richness and interaction turnover
+subanalyses_individual <- data.frame(subanalysis = c("recaptures", "all_individuals"))
+subanalyses_turnover <- data.frame(subanalysis = c("binary", "quant"))
+
+#Assign response variables to each analysis
+yvars_network <- data.frame(analysis = "specialization_network", yvar = c("H2", "d", "species.specificity.index"), yvar_names = c("H2'", "d'", "Species Specificity Index"))
+yvars_individual <- data.frame(analysis = "specialization_individual", yvar = "num_morphotypes", yvar_names = c("Number of morphotypes")) %>% crossing(subanalyses_individual)
+yvars_turnover <- data.frame(analysis = "turnover", yvar = c("WN", "ST", "OS"), yvar_names = c("Interaction turnover", "Species turnover", "Interaction turnover (shared species)")) %>% crossing(subanalyses_turnover)
+yvars <- bind_rows(yvars_network, yvars_individual, yvars_turnover)
+
+#Combine into one table to hold results, 1 row per model. Also...
+#1. Remove GREH/VISA model for H2, because H2 is not a species-level metric
+#2. Remove camera models for individual specialization
+#3. Remove pollen models for turnover
+#4. Remove GREH/VISA models for turnover, because turnover is not a species-level metric
+base_table <- crossing(analysis, sampling_method, bird_group) %>%
+  left_join(yvars) %>%
+  filter(!(bird_group == "greh_visa" & yvar == "H2")) %>%
+  filter(!(sampling_method == "camera" & analysis == "specialization_individual")) %>%
+  filter(!(sampling_method == "pollen" & analysis == "turnover")) %>%
+  filter(!(bird_group == "greh_visa" & analysis == "turnover")) %>%
+  arrange(analysis, sampling_method, bird_group) %>%
+  mutate(model_number = 1:length(analysis)) %>%
+  mutate(title = paste(analysis, sampling_method, bird_group, sep = "_")) %>%
+  mutate(subtitle = yvar) %>%
+  select(model_number, everything())
+```
+
+**Write function to subset data for each model**
+```{r step2b, message = FALSE}
+subset_data <- function(dataset, analysis, sampling_method, bird_group, subanalysis = NA, yvar){
+  
+  #Network specialization
+  if(analysis == "specialization_network"){
+    
+    dataset <- dataset %>%
+      filter(sampling_method == {{ sampling_method }}) %>%
+      filter(bird_group == {{ bird_group }}) %>%
+      filter(metric == {{ yvar }})
+    
+  }
+  
+  #Individual specialization (# pollen morphotypes/bird)
+  if(analysis == "specialization_individual"){
+
+    dataset <- dataset %>%
+      filter(sampling_method == {{ sampling_method }}) %>%
+      filter(metric == {{ yvar }})
+    
+    #Hummingbird group of interest (is not a predefined category in this dataset)
+    if(bird_group == "greh_visa"){dataset <- dataset %>% filter(bird_species == "GREH" | bird_species == "VISA")}
+
+    #Recap or not
+    if(subanalysis == "recaptures"){dataset <- dataset %>% filter(recap_y_n == "yes")}
+    
+  }
+  
+  #Turnover
+  if(analysis == "turnover"){
+    
+    dataset <- dataset %>%
+      filter(sampling_method == {{ sampling_method }}) %>%
+      filter(metric == {{ yvar }})
+    
+    if(subanalysis == "binary"){dataset <- dataset %>% filter(binary == TRUE)}
+    if(subanalysis == "quant"){dataset <- dataset %>% filter(binary == FALSE)}
+    
+  }
+  
+  #Transform response variable for analysis (network metrics only!)
+  #Also remove any NA values
+  if(analysis == "specialization_network" | analysis == "turnover"){
+    
+    dataset <- dataset %>%
+      mutate(value_transform = transform_proportion(value)) %>%
+      filter(!is.na(value_transform))
+    
+  }
+  
+  return(dataset)
+  
+}
+```
+
+```{r, include = FALSE, eval = FALSE}
+#Testing function created in previous step
+#Arguments for subset_data function: dataset, analysis, sampling_method, bird_group, yvar, subanalysis
+
+#Network specialization
+test_data01 <- subset_data(dataset = data_for_analysis, analysis = "specialization_network", sampling_method = "pollen", bird_group = "all_spp", yvar = "H2")
+test_data02 <- subset_data(dataset = data_for_analysis, analysis = "specialization_network", sampling_method = "camera", bird_group = "all_spp", yvar = "H2")
+
+test_data03 <- subset_data(dataset = data_for_analysis, analysis = "specialization_network", sampling_method = "pollen", bird_group = "greh_visa", yvar = "d")
+test_data04 <- subset_data(dataset = data_for_analysis, analysis = "specialization_network", sampling_method = "camera", bird_group = "greh_visa", yvar = "d")
+
+#Individual specialization
+test_data05 <- subset_data(dataset = data_for_analysis, analysis = "specialization_individual", sampling_method = "pollen", bird_group = "all_spp", yvar = "num_morphotypes", subanalysis = "recaptures")
+test_data06 <- subset_data(dataset = data_for_analysis, analysis = "specialization_individual", sampling_method = "pollen", bird_group = "greh_visa", yvar = "num_morphotypes", subanalysis = "recaptures")
+
+test_data07 <- subset_data(dataset = data_for_analysis, analysis = "specialization_individual", sampling_method = "pollen", bird_group = "all_spp", yvar = "num_morphotypes", subanalysis = "all_individuals")
+test_data08 <- subset_data(dataset = data_for_analysis, analysis = "specialization_individual", sampling_method = "pollen", bird_group = "greh_visa", yvar = "num_morphotypes", subanalysis = "all_individuals")
+
+#Turnover
+test_data09 <- subset_data(dataset = data_for_analysis, analysis = "turnover", sampling_method = "camera", bird_group = "all_spp", yvar = "WN", subanalysis = "binary")
+test_data10 <- subset_data(dataset = data_for_analysis, analysis = "turnover", sampling_method = "camera", bird_group = "all_spp", yvar = "WN", subanalysis = "binary")
+
+test_data11 <- subset_data(dataset = data_for_analysis, analysis = "turnover", sampling_method = "camera", bird_group = "all_spp", yvar = "WN", subanalysis = "quant")
+test_data12 <- subset_data(dataset = data_for_analysis, analysis = "turnover", sampling_method = "camera", bird_group = "all_spp", yvar = "WN", subanalysis = "quant")
+```
+
+**Choose distribution for analysis of individual specialization** (# pollen morphotypes/individual hummingbird)
+
+Here, there are several count distributions that might work. I know that distribution should be truncated, since there are no zeroes, but I will use AICc to choose between Poisson, negative binomial, and generalized Poisson. 
+
+```{r step2c, message = FALSE, fig.show = 'hide', results = 'hide'}
+#Get datasets for each model
+model_data <- base_table %>%
+  filter(analysis == "specialization_individual") %>%
+  mutate(data = pmap(list(analysis, sampling_method, bird_group, yvar, subanalysis), ~subset_data(dataset = data_for_analysis, analysis = ..1, sampling_method = ..2, bird_group = ..3, yvar = ..4, subanalysis = ..5)))
+
+#Make candidate models and compare them. Convergence issues with default optimizer
+m1 <- glmmTMB(value ~ control_treatment * exp_phase + (1|patch/year_patch), data = model_data$data[[1]], na.action = na.omit, family = "truncated_poisson", control = glmmTMBControl(optimizer=optim, optArgs=list(method="BFGS")))
+m2 <- glmmTMB(value ~ control_treatment * exp_phase + (1|patch/year_patch), data = model_data$data[[1]], na.action = na.omit, family = "truncated_nbinom1", control = glmmTMBControl(optimizer=optim, optArgs=list(method="BFGS")))
+m3 <- glmmTMB(value ~ control_treatment * exp_phase + (1|patch/year_patch), data = model_data$data[[1]], na.action = na.omit, family = "truncated_nbinom2", control = glmmTMBControl(optimizer=optim, optArgs=list(method="BFGS")))
+m4 <- glmmTMB(value ~ control_treatment * exp_phase + (1|patch/year_patch), data = model_data$data[[1]], na.action = na.omit, family = "truncated_genpois", control = glmmTMBControl(optimizer=optim, optArgs=list(method="BFGS")))
+
+model_fitting <- tibble(model_name = c("m1", "m2", "m3", "m4"), model = list(m1, m2, m3, m4)) %>%
+  mutate(dharma_object = map(model, ~simulateResiduals(fittedModel = ., n = 1000, plot = FALSE, re.form = ~0))) %>%
+  mutate(dharma_plot = pmap(list(dharma_object, model_name), ~make_dharma_plot(dharma_object = ..1, plot_title = ..2,  plot_type = "basic")),
+         dharma_zeroinfl_plot = pmap(list(dharma_object, model_name), ~make_dharma_plot(dharma_object = ..1, plot_title = ..2,  plot_type = "zeroinflation")),
+         dharma_overdisp_plot = pmap(list(dharma_object, model_name), ~make_dharma_plot(dharma_object = ..1, plot_title = ..2,  plot_type = "overdispersion"))) %>%
+  mutate(AICc = map(model, MuMIn::AICc))
+  
+#AICc
+model_fitting %>%
+  select(model_name, AICc) %>%
+  unnest(AICc) %>%
+  arrange(AICc)
+
+#Truncated generalized Poisson has lowest AICc. Added this function to 'create_model' function in next step
+```
+
+**Write function to make models**
+```{r step2d, message = FALSE}
+#Function to create models
+#Default optimizer is nlminb; if convergence issues try alternative optimizer:
+#control=glmmTMBControl(optimizer=optim, optArgs=list(method="BFGS"))
+#If use eval(bquote(.(stuff you don't want quoted))), won't have garbled formula
+create_model <- function(dataset, analysis, subanalysis = NA){
+  
+  #Species- and network-level specialization (H2', d', SSI)
+  if(analysis == "specialization_network"){
+    
+    model <- eval(bquote(glmmTMB(.(as.formula("value_transform ~ control_treatment * exp_phase + (1|patch/year_patch)")), data = dataset, na.action = na.omit, family = "beta_family")))
+
+  }
+  
+  #Individual specialization (# pollen morphotypes/bird)
+  if(analysis == "specialization_individual"){
+    
+    if(subanalysis == "all_individuals"){
+      
+      model <- eval(bquote(glmmTMB(.(as.formula("value ~ control_treatment * exp_phase + (1|patch/year_patch)")), data = dataset, na.action = na.omit, family = "truncated_genpois", control = glmmTMBControl(optimizer=optim, optArgs=list(method="BFGS")))))
+      
+    }
+    
+    if(subanalysis == "recaptures"){
+      
+      model <- eval(bquote(glmmTMB(.(as.formula("value ~ control_treatment * exp_phase + (1|patch/year_patch/bird_id)")), data = dataset, na.action = na.omit, family = "truncated_genpois", control = glmmTMBControl(optimizer=optim, optArgs=list(method="BFGS")))))
+      
+    }
+    
+  }
+  
+  #Interaction turnover
+  if(analysis == "turnover"){
+    
+    model <- eval(bquote(glmmTMB(.(as.formula("value_transform ~ control_treatment + (1|patch)")), data = dataset, na.action = na.omit, family = "beta_family")))
+
+  }
+  
+  return(model)
+  
+}
+```
+
+```{r, include = FALSE, eval = FALSE}
+#Testing function created in previous step
+(test_model01 <- create_model(dataset = test_data01, analysis = "specialization_network"))
+(test_model05 <- create_model(dataset = test_data05, analysis = "specialization_individual", subanalysis = "recaptures"))
+(test_model09 <- create_model(dataset = test_data09, analysis = "turnover", subanalysis = "binary"))
+```
+
+## Step 3: Create models and check assumptions
+
+**Create models**
+```{r step3a, message = FALSE}
+#Arguments for subset_data function: dataset, analysis, sampling_method, bird_group, yvar, subanalysis
+#Arguments for create_model function: dataset, analysis, subanalysis
+models <- base_table %>%
+  mutate(data = pmap(list(analysis, sampling_method, bird_group, yvar, subanalysis), ~subset_data(dataset = data_for_analysis, analysis = ..1, sampling_method = ..2, bird_group = ..3, yvar = ..4, subanalysis = ..5))) %>%
+  mutate(model_quietly = pmap(list(data, analysis, subanalysis), quietly(function(a, b, c){model <- create_model(dataset = a, analysis = b, subanalysis = c)})),
+         model = map(model_quietly, get_result),
+         warning = map(model_quietly, get_warning), 
+         convergence = map(model, check_convergence)) %>%
+  mutate(xvar_table = map(model, ~data.frame(xvar = all.vars(terms(.))[-1])))
+
+#Make sure there weren't any problems + check to make sure table of predictor variables is correct
+# models$warning
+# models$convergence
+# models$xvar_table
+```
+
+**Check assumptions**
+```{r step3b, message = FALSE, fig.show = 'hide', results = 'hide'}
+assumption_checks <- models %>%
+  mutate(re_plot = pmap(list(model, title, subtitle), ~check_re(model = ..1, plot_title = ..2, plot_subtitle = ..3))) %>%
+  mutate(dharma_object = map(model,
+                             ~simulateResiduals(fittedModel = ., n = 1000, plot = FALSE, re.form = ~0))) %>%
+  mutate(dharma_plot_safely = pmap(list(dharma_object, title, subtitle),
+                                   safely(function(a, b, c){make_dharma_plot(dharma_object = a, plot_title = b, plot_subtitle = c, plot_type = "basic")})),
+         dharma_plot = map(dharma_plot_safely, get_result),
+         dharma_plot_error = map(dharma_plot_safely, get_error)) %>%
+  mutate(dharma_xvar_plot_safely = pmap(list(xvar_table, data, dharma_object, title, subtitle),
+                                        safely(function(a, b, c, d, e){make_dharma_xvar_plot(predictor_table = a, dataset = b, dharma_object = c, plot_title = d, plot_subtitle = e)})),
+         dharma_xvar_plot = map(dharma_xvar_plot_safely, get_result),
+         dharma_xvar_plot_error = map(dharma_xvar_plot_safely, get_error)) %>%
+  mutate(plotname1 = paste("re_diagnostics_", model_number, ".png", sep = "")) %>%
+  mutate(plotname2 = paste("dharma_overall_diagnostics_", model_number, ".png", sep = "")) %>%
+  mutate(plotname3 = paste("dharma_xvar_diagnostics_", model_number, ".png", sep = ""))
+         
+# assumption_checks$dharma_plot_error
+# assumption_checks$dharma_xvar_plot_error
+
+#For some reason, one model throws an error when making the DHARMa plot: x missing value where TRUE/FALSE needed
+#The error seems to be for quantile regression that gives the lines on the resid vs. predicted plot
+#Except for missing the quantile regression lines, the plot looks OK though
+# model_with_error = assumption_checks %>%
+#   mutate(error = map(dharma_plot_error, length)) %>%
+#   filter(error > 0) %>%
+#   pull(model)
+# 
+# simulateResiduals(model_with_error[[1]]) %>% plot()
+
+#Export diagnostic plots because they load very slowly in RStudio
+path_name <- c("../results/analyses_experiment/assumption_checks")
+walk2(assumption_checks$plotname1, assumption_checks$re_plot, ~ggsave(filename = .x, plot = .y, path = path_name, height = 11.5, width = 15, units = "in", bg = "white"))
+walk2(assumption_checks$plotname3, assumption_checks$dharma_xvar_plot, ~ggsave(filename = .x, plot = .y, path = path_name, height = 11.5, width = 15, units = "in"))
+
+#Remove problematic plot before trying to export DHARMa plots
+assumption_checks <- assumption_checks %>% mutate(error = map(dharma_plot_error, length)) %>% filter(error < 0)
+walk2(assumption_checks$plotname2, assumption_checks$dharma_plot, ~ggsave(filename = .x, plot = .y, path = path_name, height = 11.5, width = 15, units = "in"))
+```
+
+**Check for highly influential replicates**
+```{r step3c, message = FALSE, fig.show = 'hide', results = 'hide'}
+#Make plots of DFBETAS and Cook's distance
+influence_checks <- models %>%
+  mutate(influence_plot = pmap(list(model, data, title, subtitle), ~make_influence_plot(model = ..1, dataset = ..2, plot_title = ..3, plot_subtitle = ..4, group_id = "year_patch"))) %>%
+  mutate(plotname4 = paste("influence_diagnostics_network_", model_number, ".png", sep = ""))
+
+#Export plots
+path_name <- c("../results/analyses_experiment/assumption_checks")
+walk2(influence_checks$plotname4, influence_checks$influence_plot, ~ggsave(filename = .x, plot = .y, path = path_name, height = 11.5, width = 15, units = "in", bg = "white"))
+```
+
+## Step 4: Prepare results for reporting and interpretation
+
+**Create model summaries, calculate confidence intervals, and tidy results into dataframe for export**
+```{r step4a, message = FALSE}
+#Will also add information about sample size: total # of observations (rows), number of levels per random effect, and the number of replicates (split into 'control' vs. 'treatment')
+results <- models %>%
+  mutate(summary = map(model, summary),
+         summary_tidy = map(model, broom.mixed::tidy),
+         confint_wald = map(model, ~calculate_ci(., method_name = "wald"))) %>%
+  mutate(num_obs = map(model, get_number_obs),
+         num_levels = map(model, get_number_re_levels),
+         num_reps = map(data, ~get_sample_size(data = ., vars = c("year", "patch", "control_treatment"), grouping_var = "control_treatment")))
+
+#Columns to keep when extract the results
+col_names <- c("model_number", "analysis", "sampling_method", "bird_group", "subanalysis", "yvar")
+
+#Extract model summaries
+results_tidy <- results %>%
+  select(append(col_names, "summary_tidy")) %>%
+  unnest(c(summary_tidy))
+
+#Extract confidence intervals
+results_confint <- results %>%
+  select(append(col_names, "confint_wald")) %>%
+  mutate(confint_df = map(confint_wald, as.data.frame)) %>% #CI as dataframe
+  mutate(confint_df = map(confint_df, ~tibble::rownames_to_column(., var = "term"))) %>%
+  unnest(cols = confint_df) %>%
+  rename(lowerCI = "2.5 %", upperCI = "97.5 %") %>%
+  select(-confint_wald, -Estimate)
+
+#Back-transform coefficients and confidence intervals to data scale from model scale
+results_tidy_confint <- results_tidy %>%
+  left_join(results_confint) %>%
+  mutate_at(vars(estimate, lowerCI, upperCI), .funs = list(exp = ~ifelse(effect == "fixed", exp(.), NA))) %>% 
+  mutate_at(vars(estimate, std.error, statistic, lowerCI, upperCI, estimate_exp, lowerCI_exp, upperCI_exp, p.value), ~round(., digits = 2)) %>%
+  mutate(pvalue_round = format.pval(pv = p.value, digits = 2, eps = 0.001)) %>%
+  select(model_number:term, estimate, lowerCI, upperCI, statistic, pvalue_round, pvalue = p.value, std_error = std.error, everything())
+
+#Extract number of reps for each dataset
+sample_size <- results %>%
+  select(append(append(col_names, "num_obs"), "num_reps")) %>%
+  unnest(cols = num_reps) %>%
+  mutate(num_obs = unlist(num_obs))
+```
+
+**Calculate estimated marginal means**
+
+I will use estimated marginal means to visualize and help interpret results. Since I will be plotting these data, I'll use the 'ggeffects' package, which organizes results in a standardized framework.
+```{r step 4b, message = FALSE}
+emmeans_specialization <- results %>%
+    filter(analysis == "specialization_network" | analysis == "specialization_individual") %>%
+    mutate(ggeffects = map(model, ~ggemmeans(., terms = c("exp_phase", "control_treatment"), back.transform = TRUE)))
+
+emmeans_turnover <- results %>%
+    filter(analysis == "turnover") %>%
+    mutate(ggeffects = map(model, ~ggemmeans(., terms = c("control_treatment"), back.transform = TRUE)))
+
+#Tibble where each model has a data frame of results to plot
+emmeans_for_plots <- emmeans_specialization %>%
+  bind_rows(emmeans_turnover)
+
+#As data frame
+emmeans <- emmeans_for_plots %>%
+  select(append(col_names, "ggeffects")) %>%
+  unnest(ggeffects) %>%
+  mutate_if(is.numeric, ~round(., digits = 2))
+```
+
+**Calculate relevant contrasts**
+
+Contrasts will also help with results interpretation, especially for models that include an interaction term. For models with an interaction term, I can calculate two different types of contrasts:
+
+1. pre-to-post change in treatment replicates *AND* pre-to-post change in control replicates (calculated separately)
+
+2. pre-to-post change in treatment replicates *RELATIVE TO* pre-to-post change in control replicates. This is the contrast reflecting the treatment:period interaction term and is a 'contrast of a contrast'
+
+When interpreting the contrasts, I also need to think about the link function of the model.
+
+- Individual specialization models use a Poisson distribution (log link), so the default back-transformed contrasts provide *ratios*. These are easy enough to interpret.
+
+- Network specialization models and turnover models use beta regression (logit link), so the default back-transformed contrasts provide *odds ratios*. Odds ratios are weird to interpret in this analysis, because I'm working with indices, not true probabilities.
+
+The solution to this problem is to calculate ["risk ratios", aka "proportion ratios"](https://github.com/rvlenth/emmeans/issues/48) on the data scale by using emmeans::regrid() and then supplying the 'type="response"' as an argument to confint() or summary().
+
+This trick lets me avoid odds ratios and say "the pre-to-post specialization change in treatment networks was X times larger, on average, than the pre-to-post change in control networks" and "treatment networks have, on average, X times more turnover than control networks".
+
+```{r step 4c, message = FALSE}
+#emmeans::confint() gives confidence intervals around contrast
+#emmeans::summary() gives p-value for contrast
+
+#SPECIALIZATION METRICS, INDIVIDUAL LEVEL (POISSON DISTRIBUTION)
+contrasts_specialization_individual <- results %>%
+  filter(analysis == "specialization_individual") %>%
+  mutate(emm = map(model, ~emmeans(., specs = ~exp_phase:control_treatment))) %>%
+  mutate(contrast = map(emm, ~as.data.frame(confint(contrast(., method = "revpairwise", by = c("control_treatment")), type = "response")))) %>%
+  mutate(contrast_of_contrast = map(emm, ~as.data.frame(confint(contrast(emmeans(., specs = ~exp_phase:control_treatment), interaction = ("revpairwise")), type = "response")))) %>%
+  mutate(contrast_pval_check = map(emm, ~summary(contrast(emmeans(., specs = ~exp_phase:control_treatment), interaction = ("revpairwise")), type = "response")))
+
+#SPECIALIZATION METRICS, NETWORK LEVEL (BETA DISTRIBUTION)
+contrasts_specialization_network <- results %>%
+  filter(analysis == "specialization_network") %>%
+  mutate(emm = map(model, ~emmeans(., specs = ~exp_phase:control_treatment))) %>%
+  mutate(emm_regrid = map(emm, ~regrid(., transform = "log"))) %>%
+  mutate(contrast = map(emm_regrid, ~as.data.frame(confint(contrast(., interaction = "revpairwise", by = c("control_treatment")), type = "response")))) %>%
+  mutate(contrast_of_contrast = map(emm_regrid, ~as.data.frame(confint(contrast(emmeans(., specs = ~exp_phase:control_treatment), interaction = "revpairwise"), type = "response")))) %>%
+  mutate(contrast_pval_check = map(emm_regrid, ~summary(contrast(emmeans(., specs = ~exp_phase:control_treatment), interaction = "revpairwise"), type = "response")))
+
+#INTERACTION TURNOVER (BETA DISTRIBUTION)
+contrasts_turnover <- results %>%
+  filter(analysis == "turnover") %>%
+  mutate(emm = map(model, ~emmeans(., specs = ~control_treatment))) %>%
+  mutate(emm_regrid = map(emm, ~regrid(., transform = "log"))) %>%
+  mutate(contrast = map(emm_regrid, ~as.data.frame(confint(contrast(., interaction = "revpairwise"), type = "response")))) %>%
+  mutate(contrast_pval_check = map(emm_regrid, ~summary(contrast(., interaction = "revpairwise"), type = "response")))
+```
+
+```{r, include = FALSE, eval = FALSE}
+#Check: compare p-value of coefficient of interest to p-value with contrast of interest; they should be pretty close
+results$summary[[1]]
+contrasts_specialization_individual$contrast_pval_check[[1]]
+
+contrasts_specialization_network$contrast_pval_check[1]
+results$summary[[5]]
+
+contrasts_turnover$contrast_pval_check[1]
+results$summary[15]
+```
+
+Extract contrast results
+```{r step4d, messsage = FALSE}
+#Contrasts for control and treatment replicates separately
+contrasts <- contrasts_specialization_individual %>%
+  bind_rows(contrasts_specialization_network) %>%
+  select(append(col_names, "contrast")) %>%
+  unnest(contrast) %>%
+  arrange(model_number) %>%
+  mutate_if(is.numeric, ~round(., digits = 2)) %>%
+  mutate(contrast = ifelse(is.na(contrast), as.character(exp_phase_revpairwise), as.character(contrast))) %>%
+  select(-exp_phase_revpairwise) %>%
+  select(model_number:contrast, control_treatment, ratio, lower.CL, upper.CL, everything())
+
+#Contrasts for treatment effect; for specialization models, this is the contrast representing the interaction term (contrast of contrasts)
+contrasts_of_contrasts <- contrasts_turnover %>%
+  rename(contrast_of_contrast = contrast) %>%
+  bind_rows(contrasts_specialization_network) %>%
+  bind_rows(contrasts_specialization_individual) %>%
+  select(append(col_names, "contrast_of_contrast")) %>%
+  unnest(contrast_of_contrast) %>%
+  arrange(model_number) %>%
+  mutate_if(is.numeric, ~round(., digits = 2)) %>%
+  select(model_number:starts_with("control_treatment"), starts_with("exp_phase"), ratio, lower.CL, upper.CL, everything())
+```
+
+## Step 5: Plot results
+
+There are two ways that I like to visualize the interaction term of interest
+
+1. Interaction plots, with estimated marginal means for control/treatment and pre/post (pre and post values connected by lines)
+
+- These interaction plots can be confusing without detailed explanation, so they will only be for supplemental information.
+- Only for specialization metrics, since turnover models to not have an interaction term.
+
+2. Contrast plots, with contrast reflecting the interaction term and its associated confidence intervals
+
+- These is the key plot for the main text. I will combine all analyses - specialization (all levels) and interaction turnover - into one multi-panel figure.
+
+**Interaction plots** (specialization metrics only)
+```{r step5a, message = FALSE, fig.width=9, fig.height=9}
+#Make a bunch of plots, then divide up into reasonablly sized figures in next steps
+interaction_plots <- emmeans_for_plots %>%
+  filter(analysis == "specialization_individual" | analysis == "specialization_network") %>%
+  mutate(ymax = ifelse(analysis == "specialization_individual", 4, 0.8)) %>%
+  mutate(interaction_plot = pmap(list(ggeffects, yvar, ymax), ~make_interaction_plot(ggeffects_df = ..1, yvar = ..2, ymax = ..3))) %>%
+  mutate(yvar = factor(yvar, levels = c("H2", "d", "species.specificity.index")))
+
+#NETWORK SPECIALIZATION (ALL SPECIES)
+interaction_plots_network_all <- interaction_plots %>%
+  filter(analysis == "specialization_network" & bird_group == "all_spp") %>%
+  arrange(yvar, analysis)
+
+interaction_multiplot_network_all <- ggarrange(plotlist = interaction_plots_network_all$interaction_plot, nrow = 3, ncol = 2, common.legend = TRUE, legend = "bottom")
+interaction_multiplot_network_all
+
+#NETWORK SPECIALIZATION (GREH/VISA)
+interaction_plots_network_gv <- interaction_plots %>%
+  filter(analysis == "specialization_network" & bird_group == "greh_visa") %>%
+  arrange(yvar, analysis)
+
+interaction_multiplot_network_gv <- ggarrange(plotlist = interaction_plots_network_gv$interaction_plot, nrow = 2, ncol = 2, common.legend = TRUE, legend = "bottom")
+interaction_multiplot_network_gv
+
+#INDIVIDUAL SPECIALIZATION
+interaction_plots_richness <- interaction_plots %>%
+  filter(analysis == "specialization_individual") %>%
+  arrange(yvar, analysis)
+
+interaction_multiplot_richness <- ggarrange(plotlist = interaction_plots_richness$interaction_plot, nrow = 2, ncol = 2, common.legend = TRUE, legend = "bottom")
+interaction_multiplot_richness
+```
+
+**Contrast plots** (specialization metrics + interaction turnover)
+
+When making interaction plots, I had one plot per model. Here, I want to combine multiple models per plot, so I'll just do the combinations by hand.
+```{r step5b, message = FALSE, warning = FALSE, fig.width = 9, fig.height = 12}
+h2_label <- c(expression(paste(italic(H[2])*"'")))
+d_label <-  c(expression(paste("mean "*italic(d)*"'")))
+ssi_label <- c("mean SSI")
+
+#NETWORK SPECIALIZATION (POLLEN, NETWORK-LEVEL)
+contrast_plot_pollen_network <- contrasts_of_contrasts %>%
+  filter(analysis == "specialization_network" & yvar == "H2" & sampling_method == "pollen") %>%
+  make_contrast_plot(contrasts_df = ., xvar = "yvar", shading = "below") +
+    scale_x_discrete(labels = c(h2_label)) +
+    scale_y_continuous(limits = c(0, 4), breaks = c(0, 0.5, 1, 2, 3, 4)) +
+    coord_cartesian(ylim = c(0, 4), xlim = c(1, 1), clip = "off") +
+    theme(legend.position = "none") +
+    labs(title = "Network specialization")
+
+#contrast_plot_pollen_network
+
+#NETWORK SPECIALIZATION (CAMERA, NETWORK-LEVEL)
+contrast_plot_camera_network <- contrasts_of_contrasts %>%
+  filter(analysis == "specialization_network" & yvar == "H2" & sampling_method == "camera") %>%
+  make_contrast_plot(contrasts_df = ., xvar = "yvar", shading = "below") +
+    scale_x_discrete(labels = c(h2_label)) +
+    scale_y_continuous(limits = c(0, 2.5), breaks = c(0, 0.5, 1, 2)) +
+    coord_cartesian(ylim = c(0, 2.5), xlim = c(1, 1), clip = "off") +
+    theme(legend.position = "none") +
+    labs(title = "Network specialization")
+
+#contrast_plot_camera_network
+
+#NETWORK SPECIALIZATION (POLLEN, SPECIES-LEVEL)
+contrast_plot_pollen_species <- contrasts_of_contrasts %>%
+  filter(analysis == "specialization_network" & (yvar == "d" | yvar == "species.specificity.index") & sampling_method == "pollen") %>%
+  make_contrast_plot(contrasts_df = ., xvar = "yvar", shading = "below") +
+    scale_x_discrete(labels = c(d_label, ssi_label)) +
+    scale_y_continuous(limits = c(0, 4), breaks = c(0, 0.5, 1, 2, 3, 4)) +
+    coord_cartesian(ylim = c(0, 4), xlim = c(1, 2), clip = "off") +
+    labs(title = "Species specialization")
+
+contrast_plot_pollen_species
+
+#NETWORK SPECIALIZATION (CAMERA, SPECIES-LEVEL)
+contrast_plot_camera_species <- contrasts_of_contrasts %>%
+  filter(analysis == "specialization_network" & (yvar == "d" | yvar == "species.specificity.index") & sampling_method == "camera") %>%
+  make_contrast_plot(contrasts_df = ., xvar = "yvar", shading = "below") +
+    scale_x_discrete(labels = c(d_label, ssi_label)) +
+    scale_y_continuous(limits = c(0, 2.5), breaks = c(0, 0.5, 1, 2)) +
+    coord_cartesian(ylim = c(0, 2.5), xlim = c(1, 2), clip = "off") +
+    labs(title = "Species specialization")
+
+#contrast_plot_camera_species
+
+#INDIVIDUAL SPECIALIZATION
+contrast_plot_individual <- contrasts_of_contrasts %>%
+  filter(analysis == "specialization_individual") %>%
+  mutate(subanalysis = factor(subanalysis, levels = c("all_individuals", "recaptures"), labels = c("# morphotypes\n(all individuals)", "# morphotypes\n(recaptures only)"))) %>%
+  make_contrast_plot(contrasts_df = ., xvar = "subanalysis", shading = "above") +
+    scale_y_continuous(limits = c(0, 4), breaks = c(0, 0.5, 1, 2, 3, 4)) +
+    coord_cartesian(ylim = c(0, 4), xlim = c(1, 2), clip = "off") +
+    labs(title = "Individual specialization")
+
+#contrast_plot_individual
+
+#INTERACTION TURNOVER
+contrast_plot_turnover <- contrasts_of_contrasts %>%
+  filter(analysis == "turnover" & subanalysis == "binary") %>%
+  mutate(yvar = factor(yvar, levels = c("WN", "ST", "OS"), labels = c("Total", "Species\nturnover", "Among\nshared\nspecies"))) %>%
+  make_contrast_plot(contrasts_df = ., xvar = "yvar", shading = "above") +
+    scale_y_continuous(limits = c(0, 2.5), breaks = c(0, 0.5, 1, 2)) +
+    coord_cartesian(ylim = c(0, 2.5), xlim = c(1, 3), clip = "off") +
+  labs(title = "Interaction turnover")
+
+#contrast_plot_turnover
+
+#Combine...
+contrast_multiplot_all_analyses <- ggarrange(contrast_plot_pollen_network,
+                                             contrast_plot_camera_network,
+                                             contrast_plot_pollen_species,
+                                             contrast_plot_camera_species,
+                                             contrast_plot_individual,
+                                             contrast_plot_turnover,
+                                             common.legend = TRUE, ncol = 2, nrow = 3, align = "hv", legend = "bottom")
+#contrast_multiplot_all_analyses
+```
+
+## Step 6: Export results 
+```{r step6, message = FALSE, warning = FALSE}
+#SUMMARY TABLES
+path_name <- c("../results/analyses_experiment/tables")
+
+write.csv(results_tidy_confint, file.path(path_name, "Network_rewiring_results_summary_tables.csv"))
+write.csv(sample_size, file.path(path_name, "Network_rewiring_results_sample_size_summary.csv"))
+write.csv(emmeans, file.path(path_name,"Network_rewiring_results_emmeans.csv"))
+write.csv(contrasts, file.path(path_name,"Network_rewiring_results_contrasts.csv"))
+write.csv(contrasts_of_contrasts, file.path(path_name, "Network_rewiring_results_contrasts_of_contrasts.csv"))
+
+#FIGURES
+path_name <- c("../results/analyses_experiment/figures")
+
+ggsave(file.path(path_name, "Interaction_multiplot_network_all_species.png"), interaction_multiplot_network_all, dpi = 300, units = "in", width = 9, height = 12, bg = "white")
+ggsave(file.path(path_name, "Interaction_multiplot_network_greh_visa.png"), interaction_multiplot_network_gv, dpi = 300, units = "in", width = 9, height = 9, bg = "white")
+ggsave(file.path(path_name, "Interaction_multiplot_individual.png"), interaction_multiplot_richness, dpi = 300, units = "in", width = 9, height = 9, bg = "white")
+ggsave(file.path(path_name, "Contrast_multiplot.png"), contrast_multiplot_all_analyses, dpi = 300, units = "in", width = 9, height = 12, bg = "white")
+```
