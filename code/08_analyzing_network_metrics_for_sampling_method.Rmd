@@ -246,15 +246,33 @@ ggeffects::ggpredict(model6_no_outlier) %>% plot(add.data = TRUE, jitter = 0)
 correlation_models <- tibble(model_number = c(4, 5, 6),
                              metric = c("H2", "d", "species.specificity.index"),
                              model = list(model4, model5, model6_no_outlier))
+```
 
-#Calculate pseudo r-squared
-#Conditional R2= entire model, fixed AND random effects
+**Calculate pseudo-R2 for these models**
+```{r step3c, message = FALSE, warning = FALSE}
+#Calculate pseudo r-squared (Nakagawa's R2) using performance package
+#Conditional R2 = entire model, fixed AND random effects
 #Marginal R2 = fixed effects
-#Cannot get conditional pseudo-R2 for singular fits. Looks like I'd need to remove RE and run models outside of glmmTMB to get those calculations
-r2(model4)
-r2(model5)
-r2(model6)
-r2(model6_no_outlier)
+# r2(model4)
+# r2(model5)
+# r2(model6)
+# r2(model6_no_outlier)
+
+#Problem: cannot get conditional pseudo-R2 for singular fits. Looks like I'd need to remove RE to get those calculations
+#Remove random effects and check to see if R2 is similar to marginal R2
+#Problem: Cannot just remove RE and use glmmTMB, because performance package still assumes I want Nakagawa's R2
+# model4 <- update(model4, . ~ . -(1|patch))
+# r2(model4)
+
+#To get psuedo R2 for singular fits, refit without RE in betareg...
+model4_betareg <- betareg::betareg(pollen_value_transform ~ visitation_value_transform, data = filter(data_wide_transform, metric == "H2"))
+r2(model4_betareg)
+
+model5_betareg <- betareg::betareg(pollen_value_transform ~ visitation_value_transform, data = filter(data_wide_transform, metric == "d"))
+r2(model5_betareg)
+
+model6_no_outlier_betareg <- betareg::betareg(pollen_value_transform ~ visitation_value_transform, data = filter(data_wide_transform, metric == "species.specificity.index" & year_patch != "2018_60"))
+r2(model6_no_outlier_betareg)
 ```
 
 ## Step 4: Compile and plot results
