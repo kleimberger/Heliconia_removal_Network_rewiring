@@ -97,12 +97,12 @@ Network metrics and pollen richness (# morphotypes/bird) have already been cacul
 ```{r step1b, message = FALSE}
 #1. Get data
 #2. Remove replicates than don't have a complete pre-post pair (column indicating this added in earlier step)
-#3. Remove highly influential points (2016_60, 2018_60) - both of these networks have compartments of species entirely unconnected to rest of network
+#3. Remove highly influential points (2016_60, 2018_60) - both of these pollen networks have compartments of species entirely unconnected to rest of network
 specialization_network_data <- read.csv("../data/export/for_analysis/Network_specialization_for_analysis.csv") %>%
   mutate(year_patch = paste(year, patch, sep = "_")) %>%
   filter(is.na(unpaired)) %>%
-  filter(year_patch != "2016_60") %>%
-  filter(year_patch != "2018_60") %>%
+  filter(!(sampling_method == "pollen" & year_patch == "2016_60")) %>%
+  filter(!(sampling_method == "pollen" & year_patch == "2018_60")) %>%
   select(sampling_method, bird_group, year, year_patch, everything(), -X, -unpaired) %>%
   mutate(analysis = "specialization_network")
 ```
@@ -481,7 +481,8 @@ results_tidy_confint <- results_tidy %>%
 sample_size <- results %>%
   select(append(append(col_names, "num_obs"), "num_reps")) %>%
   unnest(cols = num_reps) %>%
-  mutate(num_obs = unlist(num_obs))
+  mutate(num_obs = unlist(num_obs)) %>%
+  pivot_wider(names_from = control_treatment, values_from = n)
 ```
 
 **Calculate estimated marginal means**
