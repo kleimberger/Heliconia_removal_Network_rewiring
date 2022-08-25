@@ -168,9 +168,9 @@ sighting_rates_for_metanetwork = data_to_summarize %>%
   left_join(plant_names)
 ```
 
-## Step 5: Look at visitors to Heliconia (for general results)
+## Step 5: Summarize visitors to Heliconia (for general results)
 
-What percentage of visits are from green hermits and violet sabrewings?
+What percentage of sightings are from green hermits and violet sabrewings?
 ```{r step5}
 sighting_rates_heto <- sighting_rates_for_metanetwork %>%
   filter(plant_species == "HETO")
@@ -188,8 +188,30 @@ num_sightings_heto_greh_visa
 num_sightings_heto_greh_visa/num_sightings_heto
 ```
 
-## Step 6: Export
+## Step 6: Summarize frequency of robbing (for general results)
+
+How many sightings involve robbing?
 ```{r step6}
+honest_vs_rob <- data_to_summarize %>%
+  filter(exp_phase == "pre") %>%
+  filter(sightings_yes_or_no == "Y") %>%
+  filter(visit_type != "none") %>%
+  filter(visit_type != "unknown_type") %>%
+  group_by(visit_type) %>%
+  summarise(num_visits = n()) %>%
+  ungroup()
+  
+honest_vs_rob
+
+#Percentage of visits that involve robbing (out of total where visit type could be determined)
+(total_confirmed = sum(honest_vs_rob$num_visits))
+(total_rob = honest_vs_rob %>% filter(visit_type == "rob") %>% pull(num_visits))
+(total_honest_rob = honest_vs_rob %>% filter(visit_type == "honest_and_rob") %>% pull(num_visits))
+(total_rob + total_honest_rob)/total_confirmed
+```
+
+## Step 7: Export
+```{r step7}
 ## Camera data, filtered but not summarized
 write.csv(data_to_summarize, "../data/export/intermediate/Camera_data_filtered_for_analysis.csv") 
 

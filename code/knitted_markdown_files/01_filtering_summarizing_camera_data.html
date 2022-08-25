@@ -520,9 +520,9 @@ sighting_rates_for_metanetwork = data_to_summarize %&gt;%
   left_join(bird_names) %&gt;%
   left_join(plant_names)</code></pre>
 </div>
-<div id="step-5-look-at-visitors-to-heliconia-for-general-results" class="section level2">
-<h2>Step 5: Look at visitors to Heliconia (for general results)</h2>
-<p>What percentage of visits are from green hermits and violet
+<div id="step-5-summarize-visitors-to-heliconia-for-general-results" class="section level2">
+<h2>Step 5: Summarize visitors to Heliconia (for general results)</h2>
+<p>What percentage of sightings are from green hermits and violet
 sabrewings?</p>
 <pre class="r"><code>sighting_rates_heto &lt;- sighting_rates_for_metanetwork %&gt;%
   filter(plant_species == &quot;HETO&quot;)
@@ -549,8 +549,37 @@ num_sightings_heto</code></pre>
 <pre><code>##   num_sightings
 ## 1     0.8330976</code></pre>
 </div>
-<div id="step-6-export" class="section level2">
-<h2>Step 6: Export</h2>
+<div id="step-6-summarize-frequency-of-robbing-for-general-results" class="section level2">
+<h2>Step 6: Summarize frequency of robbing (for general results)</h2>
+<p>How many sightings involve robbing?</p>
+<pre class="r"><code>honest_vs_rob &lt;- data_to_summarize %&gt;%
+  filter(exp_phase == &quot;pre&quot;) %&gt;%
+  filter(sightings_yes_or_no == &quot;Y&quot;) %&gt;%
+  filter(visit_type != &quot;none&quot;) %&gt;%
+  filter(visit_type != &quot;unknown_type&quot;) %&gt;%
+  group_by(visit_type) %&gt;%
+  summarise(num_visits = n()) %&gt;%
+  ungroup()
+  
+honest_vs_rob</code></pre>
+<pre><code>## # A tibble: 3 × 2
+##   visit_type     num_visits
+##   &lt;chr&gt;               &lt;int&gt;
+## 1 honest               2448
+## 2 honest_and_rob        101
+## 3 rob                   208</code></pre>
+<pre class="r"><code>#Percentage of visits that involve robbing (out of total where visit type could be determined)
+(total_confirmed = sum(honest_vs_rob$num_visits))</code></pre>
+<pre><code>## [1] 2757</code></pre>
+<pre class="r"><code>(total_rob = honest_vs_rob %&gt;% filter(visit_type == &quot;rob&quot;) %&gt;% pull(num_visits))</code></pre>
+<pre><code>## [1] 208</code></pre>
+<pre class="r"><code>(total_honest_rob = honest_vs_rob %&gt;% filter(visit_type == &quot;honest_and_rob&quot;) %&gt;% pull(num_visits))</code></pre>
+<pre><code>## [1] 101</code></pre>
+<pre class="r"><code>(total_rob + total_honest_rob)/total_confirmed</code></pre>
+<pre><code>## [1] 0.1120783</code></pre>
+</div>
+<div id="step-7-export" class="section level2">
+<h2>Step 7: Export</h2>
 <pre class="r"><code>## Camera data, filtered but not summarized
 write.csv(data_to_summarize, &quot;../data/export/intermediate/Camera_data_filtered_for_analysis.csv&quot;) 
 
