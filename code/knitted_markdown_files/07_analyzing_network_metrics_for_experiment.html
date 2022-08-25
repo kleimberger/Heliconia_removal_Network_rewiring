@@ -710,8 +710,9 @@ models &lt;- base_table %&gt;%
          dharma_xvar_plot_error = map(dharma_xvar_plot_safely, get_error)) %&gt;%
   mutate(plotname1 = paste(&quot;re_diagnostics_&quot;, model_number, &quot;.png&quot;, sep = &quot;&quot;)) %&gt;%
   mutate(plotname2 = paste(&quot;dharma_overall_diagnostics_&quot;, model_number, &quot;.png&quot;, sep = &quot;&quot;)) %&gt;%
-  mutate(plotname3 = paste(&quot;dharma_xvar_diagnostics_&quot;, model_number, &quot;.png&quot;, sep = &quot;&quot;))</code></pre>
-<pre class="r"><code># assumption_checks$dharma_plot_error
+  mutate(plotname3 = paste(&quot;dharma_xvar_diagnostics_&quot;, model_number, &quot;.png&quot;, sep = &quot;&quot;))
+         
+# assumption_checks$dharma_plot_error
 # assumption_checks$dharma_xvar_plot_error
 
 #For some reason, one model throws an error when making the DHARMa plot: x missing value where TRUE/FALSE needed
@@ -736,8 +737,9 @@ walk2(assumption_checks$plotname2, assumption_checks$dharma_plot, ~ggsave(filena
 <pre class="r"><code>#Make plots of DFBETAS and Cook&#39;s distance
 influence_checks &lt;- models %&gt;%
   mutate(influence_plot = pmap(list(model, data, title, subtitle), ~make_influence_plot(model = ..1, dataset = ..2, plot_title = ..3, plot_subtitle = ..4, group_id = &quot;year_patch&quot;))) %&gt;%
-  mutate(plotname4 = paste(&quot;influence_diagnostics_network_&quot;, model_number, &quot;.png&quot;, sep = &quot;&quot;))</code></pre>
-<pre class="r"><code>#Export plots
+  mutate(plotname4 = paste(&quot;influence_diagnostics_network_&quot;, model_number, &quot;.png&quot;, sep = &quot;&quot;))
+
+#Export plots
 path_name &lt;- c(&quot;../results/analyses_experiment/assumption_checks&quot;)
 walk2(influence_checks$plotname4, influence_checks$influence_plot, ~ggsave(filename = .x, plot = .y, path = path_name, height = 11.5, width = 15, units = &quot;in&quot;, bg = &quot;white&quot;))</code></pre>
 </div>
@@ -775,8 +777,8 @@ results_confint &lt;- results %&gt;%
 results_tidy_confint &lt;- results_tidy %&gt;%
   left_join(results_confint) %&gt;%
   mutate_at(vars(estimate, lowerCI, upperCI), .funs = list(exp = ~ifelse(effect == &quot;fixed&quot;, exp(.), NA))) %&gt;% 
-  mutate_at(vars(estimate, std.error, statistic, lowerCI, upperCI, estimate_exp, lowerCI_exp, upperCI_exp, p.value), ~round(., digits = 2)) %&gt;%
-  mutate(pvalue_round = format.pval(pv = p.value, digits = 2, eps = 0.001)) %&gt;%
+  mutate_at(vars(estimate, std.error, statistic, lowerCI, upperCI, estimate_exp, lowerCI_exp, upperCI_exp), ~round(., digits = 2)) %&gt;%
+  mutate(pvalue_round = format.pval(pv = round(p.value, 3), digits = 3, nsmall = 3, eps = 0.001)) %&gt;%
   select(model_number:term, estimate, lowerCI, upperCI, statistic, pvalue_round, pvalue = p.value, std_error = std.error, everything())
 
 #Extract number of reps for each dataset

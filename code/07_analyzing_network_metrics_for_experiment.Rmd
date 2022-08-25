@@ -387,7 +387,7 @@ models <- base_table %>%
 ```
 
 **Check assumptions**
-```{r step3b, message = FALSE, fig.show = 'hide', results = 'hide'}
+```{r step3b, message = FALSE, fig.show = 'hide', results = 'hide', eval = FALSE}
 assumption_checks <- models %>%
   mutate(re_plot = pmap(list(model, title, subtitle), ~check_re(model = ..1, plot_title = ..2, plot_subtitle = ..3))) %>%
   mutate(dharma_object = map(model,
@@ -428,7 +428,7 @@ walk2(assumption_checks$plotname2, assumption_checks$dharma_plot, ~ggsave(filena
 ```
 
 **Check for highly influential replicates**
-```{r step3c, message = FALSE, fig.show = 'hide', results = 'hide'}
+```{r step3c, message = FALSE, fig.show = 'hide', results = 'hide', eval = FALSE}
 #Make plots of DFBETAS and Cook's distance
 influence_checks <- models %>%
   mutate(influence_plot = pmap(list(model, data, title, subtitle), ~make_influence_plot(model = ..1, dataset = ..2, plot_title = ..3, plot_subtitle = ..4, group_id = "year_patch"))) %>%
@@ -473,8 +473,8 @@ results_confint <- results %>%
 results_tidy_confint <- results_tidy %>%
   left_join(results_confint) %>%
   mutate_at(vars(estimate, lowerCI, upperCI), .funs = list(exp = ~ifelse(effect == "fixed", exp(.), NA))) %>% 
-  mutate_at(vars(estimate, std.error, statistic, lowerCI, upperCI, estimate_exp, lowerCI_exp, upperCI_exp, p.value), ~round(., digits = 2)) %>%
-  mutate(pvalue_round = format.pval(pv = p.value, digits = 2, eps = 0.001)) %>%
+  mutate_at(vars(estimate, std.error, statistic, lowerCI, upperCI, estimate_exp, lowerCI_exp, upperCI_exp), ~round(., digits = 2)) %>%
+  mutate(pvalue_round = format.pval(pv = round(p.value, 3), digits = 3, nsmall = 3, eps = 0.001)) %>%
   select(model_number:term, estimate, lowerCI, upperCI, statistic, pvalue_round, pvalue = p.value, std_error = std.error, everything())
 
 #Extract number of reps for each dataset

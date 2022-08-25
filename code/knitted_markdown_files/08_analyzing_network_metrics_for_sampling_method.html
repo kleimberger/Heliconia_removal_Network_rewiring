@@ -653,8 +653,8 @@ results_confint &lt;- results %&gt;%
 results_tidy_confint &lt;- results_tidy %&gt;%
   left_join(results_confint) %&gt;%
   mutate_at(vars(estimate, lowerCI, upperCI), .funs = list(exp = ~ifelse(effect == &quot;fixed&quot;, exp(.), NA))) %&gt;% 
-  mutate_at(vars(estimate, std.error, statistic, lowerCI, upperCI, estimate_exp, lowerCI_exp, upperCI_exp, p.value), ~round(., digits = 2)) %&gt;%
-  mutate(pvalue_round = format.pval(pv = p.value, digits = 2, eps = 0.001)) %&gt;%
+  mutate_at(vars(estimate, std.error, statistic, lowerCI, upperCI, estimate_exp, lowerCI_exp, upperCI_exp), ~round(., digits = 2)) %&gt;%
+  mutate(pvalue_round = format.pval(pv = round(p.value, 3), digits = 3, nsmall = 3, eps = 0.001)) %&gt;%
   select(model_number:term, estimate, lowerCI, upperCI, statistic, pvalue_round, pvalue = p.value, std_error = std.error, everything())</code></pre>
 <pre><code>## Joining, by = c(&quot;model_number&quot;, &quot;metric&quot;, &quot;term&quot;)</code></pre>
 <p><strong>For Question 1 (specialization ~ sampling method), calculate
