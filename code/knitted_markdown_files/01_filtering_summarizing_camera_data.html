@@ -520,8 +520,37 @@ sighting_rates_for_metanetwork = data_to_summarize %&gt;%
   left_join(bird_names) %&gt;%
   left_join(plant_names)</code></pre>
 </div>
-<div id="step-5-export" class="section level2">
-<h2>Step 5: Export</h2>
+<div id="step-5-look-at-visitors-to-heliconia-for-general-results" class="section level2">
+<h2>Step 5: Look at visitors to Heliconia (for general results)</h2>
+<p>What percentage of visits are from green hermits and violet
+sabrewings?</p>
+<pre class="r"><code>sighting_rates_heto &lt;- sighting_rates_for_metanetwork %&gt;%
+  filter(plant_species == &quot;HETO&quot;)
+
+num_sightings_heto &lt;- sighting_rates_heto %&gt;%
+  summarise(num_sightings = sum(sightings))
+
+num_sightings_heto_greh_visa &lt;- sighting_rates_heto %&gt;%
+  filter(bird_species == &quot;GREH&quot; | bird_species == &quot;VISA&quot;) %&gt;%
+  summarise(num_sightings = sum(sightings))
+
+#Calculate % sightings from GREH/VISA
+num_sightings_heto</code></pre>
+<pre><code>## # A tibble: 1 × 1
+##   num_sightings
+##           &lt;int&gt;
+## 1           707</code></pre>
+<pre class="r"><code>num_sightings_heto_greh_visa</code></pre>
+<pre><code>## # A tibble: 1 × 1
+##   num_sightings
+##           &lt;int&gt;
+## 1           589</code></pre>
+<pre class="r"><code>num_sightings_heto_greh_visa/num_sightings_heto</code></pre>
+<pre><code>##   num_sightings
+## 1     0.8330976</code></pre>
+</div>
+<div id="step-6-export" class="section level2">
+<h2>Step 6: Export</h2>
 <pre class="r"><code>## Camera data, filtered but not summarized
 write.csv(data_to_summarize, &quot;../data/export/intermediate/Camera_data_filtered_for_analysis.csv&quot;) 
 
