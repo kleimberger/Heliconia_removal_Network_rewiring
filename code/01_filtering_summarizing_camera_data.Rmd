@@ -8,13 +8,40 @@ knit: (function(inputFile, encoding) {
                         output_dir=file.path(dirname(inputFile), out_dir))})
 ---
 
+**Goal**
+
+Filter camera data to remove:
+
+- Videos where no flowers were present
+- Videos from afternoon of covering day; these likely reflect behavioral adjustment by hummingbirds, not the experimental outcome or 'normal' visitation
+
+Then, subset this dataset ('full dataset') into different datasets for different analyses.
+
+1. Experimental dataset
+
+**Purpose:** Investigate hummingbird responses to experimental Heliconia removal, following Before-After-Control-Impact design
+
+- Needs cameras to have data from pre AND post periods, because I'm interested in the pre-to-post change
+- Only includes data from pre and post periods, not videos reviewed outside of those periods
+
+2. 'Normal' (unmanipulated) dataset
+
+**Purpose:** Understand 'normal' visitation patterns in this study system. Use for camera meta-network, which summarizes visitation across all sites and years.
+
+- Not bound by the requirements in #1. 
+- Does not include data from the 'post' period of treatment replicates; do not want data affected by *Heliconia* removal
+
+3. Sampling method dataset
+
+**Purpose:** Analyze how sampling method (pollen vs. camera) affects specialization, using parallel networks collected during the same time and at the same site. Also examine the extent of correlation between pollen and camera approaches.
+
+- Only includes data from 'pre' periods, because want data sampled from the dates ('post' period is not an option because it's affected by *Heliconia* removal)
+
 ```{r setup, include=FALSE}
 library(tidyr)
 library(dplyr)
 library(lubridate)
 library(ggplot2)
-
-#knitr::opts_chunk$set(tidy.opts=list(width.cutoff=80), tidy=TRUE) #If want to knit to PDF, need to worry about text getting cut off
 ```
 
 ## Step 1: Import camera data + prepare for filtering
@@ -63,7 +90,7 @@ check05 <- data %>%
   filter(sightings_yes_or_no == "Y")
 ```
 
-## Step 3: Filter data for analysis
+## Step 3: Filter data for all analyses
 
 Remove videos with no flowers on camera (videos were typically not reviewed if they had no flowers, but some were reviewed anyway).
 ```{r step3a}
@@ -103,14 +130,17 @@ data03 <- data02 %>%
   rename(video_length = video_length_adjust)
 ```
 
-Remove videos from non-priority dates
-```{r step3c}
+## Step 4: Filter data for analysis of experiment
+
+Remove videos that do not correspond to 'pre' and 'post' dates
+
+Remove cameras without data pre and post. For the experiment, I'm interested in the pre-to-post change over time. No data from a given time period means that I cannot look at that change!
+```{r step4, warning = FALSE, message = FALSE}
+#Remove dates that do not correspond to pre and post; sometimes videos were reviewed during setup, for example.
 data04 <- data03 %>%
   filter(video_priority == 1)
-```
 
-Remove cameras without data pre and post (because for the experiment, I'm interested in the pre-to-post change over time. No data from a given time period means that I cannot look at that change!)
-```{r step3d, warning = FALSE, message = FALSE}
+#Identify cameras that have data from both experimental periods
 cameras_pre_and_post <- data04 %>%
   distinct(year, patch, control_treatment, exp_phase, camera_id, date_video) %>%
   group_by(year, patch, control_treatment, exp_phase, camera_id) %>%
@@ -119,13 +149,28 @@ cameras_pre_and_post <- data04 %>%
   pivot_wider(names_from = exp_phase, values_from = num_dates, values_fill = 0) %>%
   filter(post > 0 & pre > 0)
 
-data05 <- data04 %>%
+data_for_experiment <- data04 %>%
   filter(camera_id %in% cameras_pre_and_post$camera_id)
-
-data_to_summarize <- data05
 ```
 
-## Step 4: Summarize data
+## Step 5: Filter data for 'normal' visitation
+
+Remove data from 'post' period of treatment replicates (i.e., data affected by experimental *Heliconia* removal)
+```{r step5}
+data_for_metanetwork <- data03 %>%
+  filter(!(control_treatment == "treatment" & exp_phase == "post"))
+```
+
+## Step 6: Filter data for analysis of sampling method
+
+Want pollen and camera networks from the same time period, 'pre' only
+```{r step6}
+data_for_sampling_method <- data03 %>%
+  filter(video_priority == 1) %>%
+  filter(exp_phase == "pre")
+```
+
+## Step 7: Summarize data
 
 To build interaction networks, I first need an interaction rate between each hummingbird species and plant species. Here, the interaction rate will be the sighting rate, i.e., number of hummingbird sightings per hour. A sighting occurs when a hummingbird is in the camera frame. However, it's possible that a hummingbird could just be flying through, without any intention of visiting the plant. So, I will subset sightings to those in which the bird seems to drink from ("visit") the flower. For this reason, I also call refer to the "sighting rate" as the "visitation rate".
 
@@ -138,7 +183,7 @@ At this point it's also good to think ahead about the different datasets I'll ne
 2. To visualize 'normal' interactions within the study system, I'll need to just look at unmanipulated data from the 'pre' period. Here, I am interested in the interactions across sites and years. This is the "meta-network" (network of networks) approach.
 
 Get files
-```{r step4a}
+```{r step7a}
 ## Source the summarizing function
 source("../code/helper_functions/Summarize_camera_data.R")
 
@@ -153,26 +198,29 @@ plant_names <- read.csv("../data/import/Plant_codes_species_list.csv") %>%
 ```
 
 Summarize data
-```{r step4b, warning = FALSE, message = FALSE}
+```{r step7b, warning = FALSE, message = FALSE}
 ## Pre-post networks
-sighting_rates_for_pp_networks = data_to_summarize %>%
+sighting_rates_for_pp_networks = data_for_experiment %>%
   calculate_sighting_rates(data = ., level_org = "plant_species", level_time = "exp_phase", level_bird = "camera_spp_separate", sightings = "with_visit", include_unknown_spp = FALSE) %>%
   left_join(bird_names) %>%
   left_join(plant_names)
 
 ## For meta-network, first filter to data from 'pre' period, which are not affected by experiment. Could probably also include data 'post' period of control sites, but just looking at pre period for simplicity
-sighting_rates_for_metanetwork = data_to_summarize %>%
-  filter(exp_phase == "pre") %>% 
+sighting_rates_for_metanetwork = data_for_metanetwork %>%
   calculate_sighting_rates(data = ., level_org = "plant_species_across_sites", level_time = "all", level_bird = "camera_spp_separate", sightings = "with_visit", include_unknown_spp = FALSE) %>%
   left_join(bird_names) %>%
   left_join(plant_names)
 ```
 
-## Step 5: Summarize visitors to Heliconia (for general results)
+## Step 8: Summarize visitors to *Heliconia* (for general results)
 
 What percentage of sightings are from green hermits and violet sabrewings?
-```{r step5}
-sighting_rates_heto <- sighting_rates_for_metanetwork %>%
+```{r step8}
+#Include unknown species in this summary
+sighting_rates_heto <- data_for_metanetwork %>%
+  calculate_sighting_rates(data = ., level_org = "plant_species_across_sites", level_time = "all", level_bird = "camera_spp_separate", sightings = "with_visit", include_unknown_spp = TRUE) %>%
+  left_join(bird_names) %>%
+  left_join(plant_names) %>%
   filter(plant_species == "HETO")
 
 num_sightings_heto <- sighting_rates_heto %>%
@@ -188,11 +236,11 @@ num_sightings_heto_greh_visa
 num_sightings_heto_greh_visa/num_sightings_heto
 ```
 
-## Step 6: Summarize frequency of robbing (for general results)
+## Step 9: Summarize frequency of robbing (for general results)
 
-How many sightings involve robbing?
-```{r step6}
-honest_vs_rob <- data_to_summarize %>%
+How many sightings involve robbing? Summarized for experiment
+```{r step9}
+honest_vs_rob <- data_for_experiment %>%
   filter(exp_phase == "pre") %>%
   filter(sightings_yes_or_no == "Y") %>%
   filter(visit_type != "none") %>%
@@ -210,10 +258,12 @@ honest_vs_rob
 (total_rob + total_honest_rob)/total_confirmed
 ```
 
-## Step 7: Export
-```{r step7}
+## Step 10: Export
+```{r step10}
 ## Camera data, filtered but not summarized
-write.csv(data_to_summarize, "../data/export/intermediate/Camera_data_filtered_for_analysis.csv") 
+write.csv(data_for_experiment, "../data/export/intermediate/Camera_data_filtered_for_experiment.csv")
+write.csv(data_for_metanetwork, "../data/export/intermediate/Camera_data_filtered_for_metanetwork.csv") #'normal' visitation
+write.csv(data_for_sampling_method, "../data/export/intermediate/Camera_data_filtered_for_sampling_method.csv")
 
 ## Camera data, summarized for analyses using pre and post networks from individual replicates
 write.csv(sighting_rates_for_pp_networks, "../data/export/for_analysis/Camera_data_summarized_for_pp_networks.csv")
