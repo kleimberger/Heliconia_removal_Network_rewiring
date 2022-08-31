@@ -244,7 +244,7 @@ data_for_normal_visitation <- pollen06 %>%
 
 Want pollen and camera networks from the same time period, 'pre' only
 ```{r step6}
-data_for_sampling_method <- pollen06 %>%
+data_for_sampling_method <- data_for_experiment %>%
   filter(exp_phase == "capture_1")
 ```
 

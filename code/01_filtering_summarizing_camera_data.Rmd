@@ -130,7 +130,6 @@ data03 <- data02 %>%
   rename(video_length = video_length_adjust)
 ```
 
-<<<<<<< HEAD
 Calculate total number of video hours in full dataset (from which smaller datasets are created)
 ```{r step3c}
 hours_per_camera_date <- data03 %>%
@@ -157,18 +156,6 @@ Remove cameras without data pre and post. For the experiment, I'm interested in 
 data04 <- data03 %>%
   filter(video_priority == 1)
 
-=======
-## Step 4: Filter data for analysis of experiment
-
-Remove videos that do not correspond to 'pre' and 'post' dates
-
-Remove cameras without data pre and post. For the experiment, I'm interested in the pre-to-post change over time. No data from a given time period means that I cannot look at that change!
-```{r step4, warning = FALSE, message = FALSE}
-#Remove dates that do not correspond to pre and post; sometimes videos were reviewed during setup, for example.
-data04 <- data03 %>%
-  filter(video_priority == 1)
-
->>>>>>> b775c6dbab94eeef0284a459fe47e87b5354a55a
 #Identify cameras that have data from both experimental periods
 cameras_pre_and_post <- data04 %>%
   distinct(year, patch, control_treatment, exp_phase, camera_id, date_video) %>%
@@ -192,10 +179,9 @@ data_for_metanetwork <- data03 %>%
 
 ## Step 6: Filter data for analysis of sampling method
 
-Want pollen and camera networks from the same time period, 'pre' only
+Want pollen and camera networks from the same time period, 'pre' only. Easiest to just use experiment data, subset to 'pre' period.
 ```{r step6}
-data_for_sampling_method <- data03 %>%
-  filter(video_priority == 1) %>%
+data_for_sampling_method <- data_for_experiment %>%
   filter(exp_phase == "pre")
 ```
 
