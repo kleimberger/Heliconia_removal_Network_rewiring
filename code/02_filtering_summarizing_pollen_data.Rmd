@@ -8,12 +8,34 @@ knit: (function(inputFile, encoding) {
                         output_dir=file.path(dirname(inputFile), out_dir))})
 ---
 
+**Goal**
+
+Filter pollen data to remove:
+
+- Samples with no pollen
+
+Then, subset this dataset into different datasets for different analyses.
+
+1. Experimental dataset
+
+**Purpose:** Investigate hummingbird responses to experimental Heliconia removal, following Before-After-Control-Impact design
+
+2. 'Normal' (unmanipulated) dataset
+
+**Purpose:** Understand 'normal' visitation patterns in this study system. Use for camera meta-network, which summarizes visitation across all sites and years.
+
+- Does not include data from the 'post' period of treatment replicates; do not want data affected by *Heliconia* removal
+
+3. Sampling method dataset
+
+**Purpose:** Analyze how sampling method (pollen vs. camera) affects specialization, using parallel networks collected during the same time and at the same site. Also examine the extent of correlation between pollen and camera approaches.
+
+- Only includes data from 'pre' periods, because want data sampled from the dates ('post' period is not an option because it's affected by *Heliconia* removal)
+
 ```{r setup, include=FALSE}
 library(dplyr)
 library(tidyr)
 library(ggplot2)
-
-knitr::opts_chunk$set(tidy.opts=list(width.cutoff=80), tidy=TRUE) #If want to knit to PDF, need to worry about text getting cut off
 ```
 
 ## Step 1: Import pollen data
@@ -144,38 +166,42 @@ check02 <- pollen05 %>%
   filter(num_slides > 1)
 ```
 
-**Create dataset for experiment**
+## Step 3: Filter data for all analyses
 
-Remove samples with no pollen
-```{r step2f}
-#Filter to data from Heliconia removal experiment (there was a pollen slide from the establishment period, which needed to be removed)
-data_experiment <- pollen05 %>%
-  filter(exp_phase == "capture_1" | exp_phase == "capture_2") 
-
-#How many total slides?
-(total_slides <- unique(data_experiment$slide_id) %>% length())
-
-#How many unique hummingbirds?
-(total_hbird_indls <- unique(data_experiment$bird_id) %>% length())
-
+Remove samples with no pollen, after calculating the percentage of slides without pollen
+```{r step3}
 #How many slides with no pollen?
-slides_no_pollen <- data_experiment %>%
+slides_no_pollen <- pollen05 %>%
   filter(pollen_yes_or_no == "N")
 
-(total_slides_no_pollen <- unique(slides_no_pollen$slide_id) %>% length())
+#How many total slides?
+(total_slides <- unique(pollen05$slide_id) %>% length())
+
+#How many unique hummingbirds?
+(total_hbird_indls <- unique(pollen05$bird_id) %>% length())
 
 #What percentage of slides have pollen?
+(total_slides_no_pollen <- unique(pollen05$slide_id) %>% length())
 1 - (total_slides_no_pollen/total_slides)
 
 #Remove slides with no pollen, because these slides do not provide any information about what flowers hummingbirds are visiting
-data_experiment <- data_experiment %>%
-  filter(!(slide_id %in% slides_no_pollen$slide_id))
+#Also add grouping variable for bird group
+pollen06 <- pollen05 %>%
+  filter(!(slide_id %in% slides_no_pollen$slide_id)) %>%
+  mutate(bird_group = ifelse(bird_species == "GREH" | bird_species == "VISA", "greh_visa", "other")) 
+```
+
+## Step 4: Filter data for analysis of experiment
+```{r step4a}
+#Filter to data from Heliconia removal experiment (there was a pollen slide from the establishment period, which needed to be removed)
+data_for_experiment <- pollen06 %>%
+  filter(exp_phase == "capture_1" | exp_phase == "capture_2") 
 ```
 
 Indicate which birds are pre-post recaps, i.e., caught in both capture sessions (and have pollen data)
-```{r step2g, message = FALSE}
+```{r step4b, message = FALSE}
 #Individual birds with pollen data pre and post
-pre_post_recaps <- data_experiment %>%
+pre_post_recaps <- data_for_experiment %>%
   distinct(year, patch, control_treatment, exp_phase, band_number, bird_species, bird_id, slide_id) %>%
   group_by(year, patch, control_treatment, exp_phase, band_number, bird_species, bird_id) %>%
   summarise(num_slides = n()) %>%
@@ -184,13 +210,12 @@ pre_post_recaps <- data_experiment %>%
   filter(capture_1 == 1 & capture_2 == 1)
 
 #Add recap status and bird group to data. Bird group is useful because I'll want to analyze Heliconia specialists (green hermits and violet sabrewings) separately from rest of hummingbird species
-data_experiment <- data_experiment %>%
-  mutate(recap_y_n = ifelse(bird_id %in% pre_post_recaps$bird_id, "yes", "no")) %>%
-  mutate(bird_group = ifelse(bird_species == "GREH" | bird_species == "VISA", "greh_visa", "other")) 
+data_for_experiment <- data_for_experiment %>%
+  mutate(recap_y_n = ifelse(bird_id %in% pre_post_recaps$bird_id, "yes", "no"))
 
 #How many recaps were there?
 #Recaptures of all species
-recap_summary <- data_experiment %>%
+recap_summary <- data_for_experiment %>%
   distinct(slide_id, bird_species, bird_id, exp_phase, recap_y_n) %>%
   group_by(recap_y_n, exp_phase) %>%
   summarise(num_slides = n())
@@ -198,7 +223,7 @@ recap_summary <- data_experiment %>%
 recap_summary
 
 #Recaptures of GREH/VISA only
-recap_summary_greh_visa <- data_experiment %>%
+recap_summary_greh_visa <- data_for_experiment %>%
   filter(bird_group == "greh_visa") %>%
   distinct(recap_y_n, bird_group, exp_phase, slide_id) %>%
   group_by(recap_y_n, bird_group, exp_phase) %>%
@@ -207,35 +232,43 @@ recap_summary_greh_visa <- data_experiment %>%
 recap_summary_greh_visa
 ```
 
-## Step 3: Summarize data for analysis
+## Step 5: Filter data for 'normal' visitation
 
-These data will be be used for multiple analyses that largely mirror those of the camera data (but see #3, below).
+Remove data from 'post' period of treatment replicates (i.e., data affected by experimental *Heliconia* removal)
+```{r step5}
+data_for_normal_visitation <- pollen06 %>%
+  filter(!(control_treatment == "treatment" & exp_phase == "capture_2"))
+```
+
+## Step 6: Filter data for analysis of sampling method
+
+Want pollen and camera networks from the same time period, 'pre' only
+```{r step6}
+data_for_sampling_method <- pollen06 %>%
+  filter(exp_phase == "capture_1")
+```
+
+## Step 7: Summarize data for analysis
 
 To build interaction networks, I first need an interaction rate between each hummingbird species and plant species. Here, the interaction rate will be the umber of interactions between each hummingbird species and pollen morphotype ( = plant type/species), following other studies of hummingbird pollen networks (e.g., Ramirez-Burbano et al. 2017, Maglianesi et al. 2015, Morrison & Mendenhall 2020).
 
 To calculate this rate, I will calculate the number of times that a pollen morphotype appears on each hummingbird species, regardless of the number of pollen grains on the bird.
 
-At this point it's also good to think ahead about the different datasets I'll need:
-
-1. To understand how hummingbird visitation changes as result of our experimental manipulation (Heliconia removal), I'll need to summarize data at the level of EXPERIMENTAL PERIOD (pre vs. post) and REPLICATE (i.e., site + year combination). To explore how sampling method (camera observations vs. pollen samples) influences network metrics from individual networks, I can use this same dataset, but filtered to the 'pre' period only.
-
-2. To visualize 'normal' interactions within the study system, I'll need to just look at unmanipulated data from the 'pre' period. Here, I am interested in the interactions across sites and years. This is the "meta-network" (network of networks) approach.
-
-3. Individual specialization = number of pollen morphotypes per individual hummingbird, i.e., pollen richness. This is not a network measure.
+I'll also quantify individual specialization as the number of pollen morphotypes per individual hummingbird, i.e., pollen richness. This is not a network measure.
 
 **Summary for network analysis**
 
-Number of times a hummingbird carried the pollen of each plant species
-```{r step3a, message = FALSE}
+Interaction frequency = number of times a hummingbird carried the pollen of each plant species
+```{r step7a, message = FALSE}
 #Interaction frequency = number of times a hummingbird carried the pollen of each plant species, i.e., number of slides containing a given pollen morphotype
-network_data_experiment <- data_experiment %>%
+frequencies_for_pp_networks <- data_for_experiment %>%
   group_by(year, patch, control_treatment, exp_phase, bird_species, bird_scientific_name, pollen_morphotype) %>%
   summarise(num_slides = n()) %>% 
   ungroup()
 
-#This is similar to summary for experiment...EXCEPT that it is not summarized to level of pre/post. This is the "meta-network", i.e., summary network of sub-sampled sites/networks
-metanetwork_data <- data_experiment %>%
-  filter(exp_phase == "capture_1") %>%
+#This is similar to summary for experiment...EXCEPT that it is not summarized to level of pre/post and excludes data from 'post' period of treatment sites. This is the "meta-network", i.e., summary network of sub-sampled sites/networks
+frequencies_for_metanetwork <- data_for_normal_visitation %>%
+  filter(!(control_treatment == "treatment" & exp_phase == "capture_2")) %>%
   group_by(bird_species, bird_scientific_name, pollen_morphotype) %>%
   summarise(num_slides = n()) %>%
   ungroup()
@@ -245,14 +278,14 @@ metanetwork_data <- data_experiment %>%
 #Slightly different method (i.e., Betts et al. 2015) -- NOT USED IN ANALYSIS. Here, interaction frequency = proportion of samples that contain a given pollen type (calculated by divided number of interactions by the total of number of samples)
 
 #First, calculate number of individuals analyzed of each species, at level of pre and post. This is basically the number of birds captured, if all birds had pollen collected/analyzed.
-number_slides_analyzed <- data_experiment %>%
+number_slides_analyzed <- data_for_experiment %>%
   distinct(year, patch, control_treatment, exp_phase, bird_species, bird_scientific_name, slide_number) %>%
   group_by(year, patch, control_treatment, exp_phase, bird_species, bird_scientific_name) %>%
   summarise(num_slides_analyzed = n()) %>%
   ungroup()
 
 #Then, divide number of interactions by number of slides
-network_data_experiment_betts_method <- network_data_experiment %>%
+frequencies_for_pp_networks_betts_method <- frequencies_for_pp_networks %>%
   left_join(number_slides_analyzed) %>% #Add data about sampling effort. How many slides were analyzed per bird species?
   mutate(interaction_rate = num_slides/num_slides_analyzed) #Interaction rate, following Betts et al. 2015
 ```
@@ -260,39 +293,39 @@ network_data_experiment_betts_method <- network_data_experiment %>%
 **Summary for individual specialization**
 
 Number of pollen morphotypes per individual bird (richness of flower types per sample)
-```{r step3b, message = FALSE}
-#Remember, slide = microscope slide = pollen sample
-morphotypes_per_slide_experiment <- data_experiment %>%
+```{r step7b, message = FALSE}
+#Remember, slide = microscope slide = pollen sample. Have already removed birds with no pollen, so number of morphotypes will always be >0
+morphotypes_per_slide <- data_for_experiment %>%
   select(year, patch, control_treatment, exp_phase, date, slide_number, slide_id, bird_id, day_bird_id, band_number, bird_species, bird_scientific_name, bird_sex, recap_y_n, pollen_yes_or_no, pollen_morphotype) %>%
   group_by(year, patch, control_treatment, exp_phase, date, slide_number, slide_id, bird_id, day_bird_id, band_number, bird_species, bird_scientific_name, bird_sex, recap_y_n, pollen_yes_or_no) %>%
   summarise(num_morphotypes = n()) %>%
   ungroup() %>%
   arrange(num_morphotypes)
 
-max(morphotypes_per_slide_experiment$num_morphotypes)
+max(morphotypes_per_slide$num_morphotypes)
 #Max of 8 morphotypes per slide, including unknown morphotypes
 
 #Plot morphotypes per bird - including birds with no pollen (EXPERIMENT)
-ggplot(aes(x = num_morphotypes), data = morphotypes_per_slide_experiment) +
+ggplot(aes(x = num_morphotypes), data = morphotypes_per_slide) +
   geom_histogram() +
   theme_bw(base_size = 18) +
   labs(x = "Number of pollen morphotypes", y = "Number of samples")
 ```
 
-## Step 4: Summarize data for general results about hummingbird natural history
+## Step 8: Summarize data for general results about hummingbird natural history
 
-Decided to just look at 'normal' data, but results are basically the same if decide to include all slides (i.e., treatment post)
-```{r step4a}
-#Note: have already removed birds with no pollen, so number of morphotypes will always be >0
-morphotypes_per_slide_normal <- morphotypes_per_slide_experiment %>%
-  filter(exp_phase == "capture_1")
-
-data_normal_visitation <- data_experiment %>%
-  filter(exp_phase == "capture_1")
+Decided to just look at 'normal' data, but results are basically the same if decide to include all slides
+```{r step8a}
+morphotypes_per_slide_normal <- data_for_normal_visitation %>%
+  select(year, patch, control_treatment, exp_phase, date, slide_number, slide_id, bird_id, day_bird_id, band_number, bird_species, bird_scientific_name, bird_sex, pollen_yes_or_no, pollen_morphotype) %>%
+  group_by(year, patch, control_treatment, exp_phase, date, slide_number, slide_id, bird_id, day_bird_id, band_number, bird_species, bird_scientific_name, bird_sex, pollen_yes_or_no) %>%
+  summarise(num_morphotypes = n()) %>%
+  ungroup() %>%
+  arrange(num_morphotypes)
 ```
 
 **How many pollen morphotypes per bird?**
-```{r step4b, message = FALSE}
+```{r step8b, message = FALSE}
 #Summary of number of morphotypes per bird
 num_morphotypes_per_bird_sum <- morphotypes_per_slide_normal %>%
   summarise(mean = mean(num_morphotypes),
@@ -311,10 +344,9 @@ ggplot(aes(x = num_morphotypes), data = morphotypes_per_slide_normal) +
 ```
 
 **Of the pollen samples (slides) with Heliconia pollen, how many are from GREH/VISA?**
-```{r step4c, message = FALSE}
-
+```{r step8c, message = FALSE}
 #One row per slide with HETO
-slides_with_heto_pollen <- data_normal_visitation %>%
+slides_with_heto_pollen <- data_for_normal_visitation %>%
   filter(pollen_morphotype == "HELICONIA01")
 
 (num_slides_with_heto_pollen = unique(slides_with_heto_pollen$slide_id) %>% length())
@@ -330,8 +362,8 @@ sum_slides_with_heto_pollen
 ```
 
 **Of the pollen samples (slides) from GREH/VISA, how many contain Heliconia pollen?**
-```{r step4d}
-slides_greh_visa <- data_normal_visitation %>%
+```{r step8d}
+slides_greh_visa <- data_for_normal_visitation %>%
   filter(bird_group == "greh_visa") %>%
   distinct(year, patch, control_treatment, exp_phase, bird_group, bird_species, bird_scientific_name, slide_id, pollen_morphotype)
 
@@ -351,7 +383,7 @@ lone_bird <- slides_greh_visa %>%
 ```
 
 **Of the pollen samples (slides) from GREH/VISA, how many contain ONLY Heliconia pollen?**
-```{r step4e}
+```{r step8e}
 #Slides where Heliconia is only morphotype present
 slides_greh_visa_with_heto_pollen_only <- morphotypes_per_slide_normal %>%
   filter(slide_id %in% slides_greh_visa_with_heto_pollen$slide_id) %>%
@@ -367,7 +399,7 @@ num_slides_greh_visa_with_heto_pollen_only/num_slides_greh_visa
 ```
 
 **Of the pollen samples (slides) from GREH/VISA, how many contain Heliconia pollen + 1 other type?**
-```{r step4f}
+```{r step8f}
 #Slides that have Heliconia + one other morphotype
 num_slides_greh_visa_with_heto_pollen_plus_1_other <- morphotypes_per_slide_normal %>%
   filter(slide_id %in% slides_greh_visa_with_heto_pollen$slide_id) %>%
@@ -383,23 +415,23 @@ num_slides_greh_visa_with_heto_pollen_plus_1_other/num_slides_greh_visa
 ```
 
 **Of the pollen samples (slides) from GREH/VISA, how many contain ONLY Heliconia pollen -OR- ONLY Heliconia pollen + 1 other type?**
-```{r step4g}
+```{r step8g}
 (num_slides_greh_visa_with_heto_pollen_only + num_slides_greh_visa_with_heto_pollen_plus_1_other)
 
 #Proportion of total
 (num_slides_greh_visa_with_heto_pollen_only + num_slides_greh_visa_with_heto_pollen_plus_1_other)/num_slides_greh_visa
 ```
 
-## Step 5: Summarize data for methods
+## Step 9: Summarize data for methods
 
 **Summary of the overall number of morphotypes detected - across all birds - and the taxonomic resolution at which they were identified**
 
-Across ALL slides collected for experiment
-```{r step5}
-(num_morphotypes_total <- unique(data_experiment$pollen_morphotype) %>% length())
+Across ALL slides collected for experiment, since this is the larger dataset
+```{r step9}
+(num_morphotypes_total <- unique(data_for_experiment$pollen_morphotype) %>% length())
 
 #All morphotypes found.
-morphotypes_list <- data_experiment %>%
+morphotypes_list <- data_for_experiment %>%
   distinct(plant_name_family, plant_name_genus, plant_name_species, pollen_morphotype)
   
 #How many are completely unknown? I.e. don't even know the family?
@@ -441,19 +473,21 @@ num_morphotypes_known_genus/num_morphotypes_total
 num_morphotypes_known_family/num_morphotypes_total
 ```
 
-## Step 6: Export data
-```{r step6}
-#Unsummarized data (intermediate step, not for analysis)
-write.csv(data_experiment, "../data/export/intermediate/Pollen_data_filtered_for_analysis.csv") 
+## Step 10: Export data
+```{r step10}
+## Camera data, filtered but not summarized
+write.csv(data_for_experiment, "../data/export/intermediate/Pollen_data_filtered_for_experiment.csv") 
+write.csv(data_for_normal_visitation, "../data/export/intermediate/Pollen_data_filtered_for_metanetwork.csv") #'normal' visitation
+write.csv(data_for_sampling_method, "../data/export/intermediate/Pollen_data_filtered_for_sampling_method.csv")
 
 #Summarized data for analysis
 
 #Summarized morphotype richness
-write.csv(morphotypes_per_slide_experiment, "../data/export/for_analysis/Pollen_data_summarized_for_pp_richness.csv") 
+write.csv(morphotypes_per_slide, "../data/export/for_analysis/Pollen_data_summarized_for_pp_richness.csv") 
 
 #Interaction frequencies between plants + hummingbirds (per replicate)
-write.csv(network_data_experiment, "../data/export/for_analysis/Pollen_data_summarized_for_pp_networks.csv")
+write.csv(frequencies_for_pp_networks, "../data/export/for_analysis/Pollen_data_summarized_for_pp_networks.csv")
 
 #Interaction frequencies between plants + hummingbirds (meta-network)
-write.csv(metanetwork_data, "../data/export/for_analysis/Pollen_data_summarized_for_metanetwork.csv") 
+write.csv(frequencies_for_metanetwork, "../data/export/for_analysis/Pollen_data_summarized_for_metanetwork.csv") 
 ```

@@ -367,6 +367,51 @@ analysis</h1>
 </div>
 
 
+<p><strong>Goal</strong></p>
+<p>Filter camera data to remove:</p>
+<ul>
+<li>Videos where no flowers were present</li>
+<li>Videos from afternoon of covering day; these likely reflect
+behavioral adjustment by hummingbirds, not the experimental outcome or
+‘normal’ visitation</li>
+</ul>
+<p>Then, subset this dataset (‘full dataset’) into different datasets
+for different analyses.</p>
+<ol style="list-style-type: decimal">
+<li>Experimental dataset</li>
+</ol>
+<p><strong>Purpose:</strong> Investigate hummingbird responses to
+experimental Heliconia removal, following Before-After-Control-Impact
+design</p>
+<ul>
+<li>Needs cameras to have data from pre AND post periods, because I’m
+interested in the pre-to-post change</li>
+<li>Only includes data from pre and post periods, not videos reviewed
+outside of those periods</li>
+</ul>
+<ol start="2" style="list-style-type: decimal">
+<li>‘Normal’ (unmanipulated) dataset</li>
+</ol>
+<p><strong>Purpose:</strong> Understand ‘normal’ visitation patterns in
+this study system. Use for camera meta-network, which summarizes
+visitation across all sites and years.</p>
+<ul>
+<li>Not bound by the requirements in #1.</li>
+<li>Does not include data from the ‘post’ period of treatment
+replicates; do not want data affected by <em>Heliconia</em> removal</li>
+</ul>
+<ol start="3" style="list-style-type: decimal">
+<li>Sampling method dataset</li>
+</ol>
+<p><strong>Purpose:</strong> Analyze how sampling method (pollen
+vs. camera) affects specialization, using parallel networks collected
+during the same time and at the same site. Also examine the extent of
+correlation between pollen and camera approaches.</p>
+<ul>
+<li>Only includes data from ‘pre’ periods, because want data sampled
+from the dates (‘post’ period is not an option because it’s affected by
+<em>Heliconia</em> removal)</li>
+</ul>
 <div id="step-1-import-camera-data-prepare-for-filtering" class="section level2">
 <h2>Step 1: Import camera data + prepare for filtering</h2>
 <pre class="r"><code>## 1. Create column for unique camera ID
@@ -411,8 +456,8 @@ check05 &lt;- data %&gt;%
   filter(video_end &gt;= lubridate::hm(&quot;11:30&quot;)) %&gt;%
   filter(sightings_yes_or_no == &quot;Y&quot;)</code></pre>
 </div>
-<div id="step-3-filter-data-for-analysis" class="section level2">
-<h2>Step 3: Filter data for analysis</h2>
+<div id="step-3-filter-data-for-all-analyses" class="section level2">
+<h2>Step 3: Filter data for all analyses</h2>
 <p>Remove videos with no flowers on camera (videos were typically not
 reviewed if they had no flowers, but some were reviewed anyway).</p>
 <pre class="r"><code>## I will still include NAs, since some plants never had flowers visible on video (i.e., MARA-VER, GINGY)
@@ -447,13 +492,38 @@ data03 &lt;- data02 %&gt;%
   select(row_id:video_length, video_end_adjust, video_length_adjust, everything()) %&gt;%
   select(-video_length) %&gt;%
   rename(video_length = video_length_adjust)</code></pre>
-<p>Remove videos from non-priority dates</p>
-<pre class="r"><code>data04 &lt;- data03 %&gt;%
-  filter(video_priority == 1)</code></pre>
-<p>Remove cameras without data pre and post (because for the experiment,
-I’m interested in the pre-to-post change over time. No data from a given
-time period means that I cannot look at that change!)</p>
-<pre class="r"><code>cameras_pre_and_post &lt;- data04 %&gt;%
+<p>Calculate total number of video hours in full dataset (from which
+smaller datasets are created)</p>
+<pre class="r"><code>hours_per_camera_date &lt;- data03 %&gt;%
+  distinct(year, patch, control_treatment, camera_num, date_video, exp_phase, file_id, video_length) %&gt;%
+  group_by(year, patch, control_treatment, camera_num, date_video, exp_phase) %&gt;%
+  summarise(video_hours = sum(video_length)) %&gt;%
+  ungroup()</code></pre>
+<pre><code>## `summarise()` has grouped output by &#39;year&#39;, &#39;patch&#39;, &#39;control_treatment&#39;,
+## &#39;camera_num&#39;, &#39;date_video&#39;. You can override using the `.groups` argument.</code></pre>
+<pre class="r"><code>#Number of hours, summarized across cameras
+hours_total &lt;- hours_per_camera_date %&gt;%
+  summarise(video_hours = sum(video_hours)) %&gt;%
+  ungroup()
+
+hours_total</code></pre>
+<pre><code>## # A tibble: 1 × 1
+##   video_hours
+##         &lt;dbl&gt;
+## 1      20735.</code></pre>
+</div>
+<div id="step-4-filter-data-for-analysis-of-experiment" class="section level2">
+<h2>Step 4: Filter data for analysis of experiment</h2>
+<p>Remove videos that do not correspond to ‘pre’ and ‘post’ dates</p>
+<p>Remove cameras without data pre and post. For the experiment, I’m
+interested in the pre-to-post change over time. No data from a given
+time period means that I cannot look at that change!</p>
+<pre class="r"><code>#Remove dates that do not correspond to pre and post; sometimes videos were reviewed during setup, for example.
+data04 &lt;- data03 %&gt;%
+  filter(video_priority == 1)
+
+#Identify cameras that have data from both experimental periods
+cameras_pre_and_post &lt;- data04 %&gt;%
   distinct(year, patch, control_treatment, exp_phase, camera_id, date_video) %&gt;%
   group_by(year, patch, control_treatment, exp_phase, camera_id) %&gt;%
   summarise(num_dates = n()) %&gt;%
@@ -461,13 +531,26 @@ time period means that I cannot look at that change!)</p>
   pivot_wider(names_from = exp_phase, values_from = num_dates, values_fill = 0) %&gt;%
   filter(post &gt; 0 &amp; pre &gt; 0)
 
-data05 &lt;- data04 %&gt;%
-  filter(camera_id %in% cameras_pre_and_post$camera_id)
-
-data_to_summarize &lt;- data05</code></pre>
+data_for_experiment &lt;- data04 %&gt;%
+  filter(camera_id %in% cameras_pre_and_post$camera_id)</code></pre>
 </div>
-<div id="step-4-summarize-data" class="section level2">
-<h2>Step 4: Summarize data</h2>
+<div id="step-5-filter-data-for-normal-visitation" class="section level2">
+<h2>Step 5: Filter data for ‘normal’ visitation</h2>
+<p>Remove data from ‘post’ period of treatment replicates (i.e., data
+affected by experimental <em>Heliconia</em> removal)</p>
+<pre class="r"><code>data_for_metanetwork &lt;- data03 %&gt;%
+  filter(!(control_treatment == &quot;treatment&quot; &amp; exp_phase == &quot;post&quot;))</code></pre>
+</div>
+<div id="step-6-filter-data-for-analysis-of-sampling-method" class="section level2">
+<h2>Step 6: Filter data for analysis of sampling method</h2>
+<p>Want pollen and camera networks from the same time period, ‘pre’
+only</p>
+<pre class="r"><code>data_for_sampling_method &lt;- data03 %&gt;%
+  filter(video_priority == 1) %&gt;%
+  filter(exp_phase == &quot;pre&quot;)</code></pre>
+</div>
+<div id="step-7-summarize-data" class="section level2">
+<h2>Step 7: Summarize data</h2>
 <p>To build interaction networks, I first need an interaction rate
 between each hummingbird species and plant species. Here, the
 interaction rate will be the sighting rate, i.e., number of hummingbird
@@ -508,26 +591,37 @@ plant_names &lt;- read.csv(&quot;../data/import/Plant_codes_species_list.csv&quo
   filter(!is.na(plant_species) &amp; plant_species != &quot;&quot;) #Get rid of blank rows</code></pre>
 <p>Summarize data</p>
 <pre class="r"><code>## Pre-post networks
-sighting_rates_for_pp_networks = data_to_summarize %&gt;%
+sighting_rates_for_pp_networks = data_for_experiment %&gt;%
   calculate_sighting_rates(data = ., level_org = &quot;plant_species&quot;, level_time = &quot;exp_phase&quot;, level_bird = &quot;camera_spp_separate&quot;, sightings = &quot;with_visit&quot;, include_unknown_spp = FALSE) %&gt;%
   left_join(bird_names) %&gt;%
   left_join(plant_names)
 
 ## For meta-network, first filter to data from &#39;pre&#39; period, which are not affected by experiment. Could probably also include data &#39;post&#39; period of control sites, but just looking at pre period for simplicity
-sighting_rates_for_metanetwork = data_to_summarize %&gt;%
-  filter(exp_phase == &quot;pre&quot;) %&gt;% 
+sighting_rates_for_metanetwork = data_for_metanetwork %&gt;%
   calculate_sighting_rates(data = ., level_org = &quot;plant_species_across_sites&quot;, level_time = &quot;all&quot;, level_bird = &quot;camera_spp_separate&quot;, sightings = &quot;with_visit&quot;, include_unknown_spp = FALSE) %&gt;%
   left_join(bird_names) %&gt;%
   left_join(plant_names)</code></pre>
 </div>
-<div id="step-5-summarize-visitors-to-heliconia-for-general-results" class="section level2">
-<h2>Step 5: Summarize visitors to Heliconia (for general results)</h2>
+<div id="step-8-summarize-visitors-to-heliconia-for-general-results" class="section level2">
+<h2>Step 8: Summarize visitors to <em>Heliconia</em> (for general
+results)</h2>
 <p>What percentage of sightings are from green hermits and violet
 sabrewings?</p>
-<pre class="r"><code>sighting_rates_heto &lt;- sighting_rates_for_metanetwork %&gt;%
-  filter(plant_species == &quot;HETO&quot;)
-
-num_sightings_heto &lt;- sighting_rates_heto %&gt;%
+<pre class="r"><code>#Include unknown species in this summary
+sighting_rates_heto &lt;- data_for_metanetwork %&gt;%
+  calculate_sighting_rates(data = ., level_org = &quot;plant_species_across_sites&quot;, level_time = &quot;all&quot;, level_bird = &quot;camera_spp_separate&quot;, sightings = &quot;with_visit&quot;, include_unknown_spp = TRUE) %&gt;%
+  left_join(bird_names) %&gt;%
+  left_join(plant_names) %&gt;%
+  filter(plant_species == &quot;HETO&quot;)</code></pre>
+<pre><code>## `summarise()` has grouped output by &#39;plant_species&#39;. You can override using the
+## `.groups` argument.
+## Joining, by = &quot;plant_species&quot;
+## Joining, by = &quot;plant_species&quot;
+## Joining, by = &quot;plant_species&quot;
+## Joining, by = &quot;plant_species&quot;
+## Joining, by = &quot;bird_species&quot;
+## Joining, by = &quot;plant_species&quot;</code></pre>
+<pre class="r"><code>num_sightings_heto &lt;- sighting_rates_heto %&gt;%
   summarise(num_sightings = sum(sightings))
 
 num_sightings_heto_greh_visa &lt;- sighting_rates_heto %&gt;%
@@ -539,20 +633,20 @@ num_sightings_heto</code></pre>
 <pre><code>## # A tibble: 1 × 1
 ##   num_sightings
 ##           &lt;int&gt;
-## 1           707</code></pre>
+## 1          1055</code></pre>
 <pre class="r"><code>num_sightings_heto_greh_visa</code></pre>
 <pre><code>## # A tibble: 1 × 1
 ##   num_sightings
 ##           &lt;int&gt;
-## 1           589</code></pre>
+## 1           889</code></pre>
 <pre class="r"><code>num_sightings_heto_greh_visa/num_sightings_heto</code></pre>
 <pre><code>##   num_sightings
-## 1     0.8330976</code></pre>
+## 1      0.842654</code></pre>
 </div>
-<div id="step-6-summarize-frequency-of-robbing-for-general-results" class="section level2">
-<h2>Step 6: Summarize frequency of robbing (for general results)</h2>
-<p>How many sightings involve robbing?</p>
-<pre class="r"><code>honest_vs_rob &lt;- data_to_summarize %&gt;%
+<div id="step-9-summarize-frequency-of-robbing-for-general-results" class="section level2">
+<h2>Step 9: Summarize frequency of robbing (for general results)</h2>
+<p>How many sightings involve robbing? Summarized for experiment</p>
+<pre class="r"><code>honest_vs_rob &lt;- data_for_experiment %&gt;%
   filter(exp_phase == &quot;pre&quot;) %&gt;%
   filter(sightings_yes_or_no == &quot;Y&quot;) %&gt;%
   filter(visit_type != &quot;none&quot;) %&gt;%
@@ -578,10 +672,12 @@ honest_vs_rob</code></pre>
 <pre class="r"><code>(total_rob + total_honest_rob)/total_confirmed</code></pre>
 <pre><code>## [1] 0.1120783</code></pre>
 </div>
-<div id="step-7-export" class="section level2">
-<h2>Step 7: Export</h2>
+<div id="step-10-export" class="section level2">
+<h2>Step 10: Export</h2>
 <pre class="r"><code>## Camera data, filtered but not summarized
-write.csv(data_to_summarize, &quot;../data/export/intermediate/Camera_data_filtered_for_analysis.csv&quot;) 
+write.csv(data_for_experiment, &quot;../data/export/intermediate/Camera_data_filtered_for_experiment.csv&quot;)
+write.csv(data_for_metanetwork, &quot;../data/export/intermediate/Camera_data_filtered_for_metanetwork.csv&quot;) #&#39;normal&#39; visitation
+write.csv(data_for_sampling_method, &quot;../data/export/intermediate/Camera_data_filtered_for_sampling_method.csv&quot;)
 
 ## Camera data, summarized for analyses using pre and post networks from individual replicates
 write.csv(sighting_rates_for_pp_networks, &quot;../data/export/for_analysis/Camera_data_summarized_for_pp_networks.csv&quot;)

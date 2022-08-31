@@ -32,19 +32,23 @@ knitr::opts_chunk$set(tidy.opts=list(width.cutoff=80), tidy=TRUE) #If want to kn
 
 ## Step 1: Import data
 
-Different data were used for different analyses, so effort will vary depending on the particular dataset. Here, I am just interested in two main video datasets:
+Different data were used for different analyses, so effort will vary depending on the particular dataset. Several datasets were created in a previous step:
 
-1. Video data for experiment. This dataset was created in a previous script (01).
+1. Video data for experiment. This the main dataset, so I will primarily summarize effort for this dataset.
 
-2. Video data for 'normal' visitation. This is just the data from the 'pre' experimental period, so I will summarize data to level of experimental period (pre/post) and then just filter that summary.
+2. Video data for 'normal' visitation/meta-network
 
-For summarizing data for methods, I will also need the datasets for:
+3. Video data for sampling method analysis
+
+When summarizing data for methods, I will also need the datasets for:
 
 - Camera set-up information, which includes camera locations (GPS coordinates)
 
 ```{r step1}
 #Video data to analyze
-data_experiment <- read.csv("../data/export/intermediate/Camera_data_filtered_for_analysis.csv")
+data_experiment <- read.csv("../data/export/intermediate/Camera_data_filtered_for_experiment.csv")
+data_metanetwork <- read.csv("../data/export/intermediate/Camera_data_filtered_for_metanetwork.csv")
+data_sampling_method <- read.csv("../data/export/intermediate/Camera_data_filtered_for_sampling_method.csv")
 
 #Camera location data
 camera_locations <- read.csv("../data/import/Camera_locations_2016-2018_20210705.csv")
@@ -56,7 +60,7 @@ exp_info <- read.csv("../data/import/Experiment_dates_2016-2018.csv")
 source("../code/helper_functions/Calculate_basic_summary_stats.R")
 ```
 
-## Step 2: Calculate video effort (video hours) per replicate
+## Step 2: Calculate video effort (video hours) for experiment
 
 Cameras were positioned at flowering plants and programmed to record for 12 hours/day (5:30-17:30). However, we do not have 12 hours/day of footage per camera for a variety of reasons:
 
@@ -65,7 +69,6 @@ Cameras were positioned at flowering plants and programmed to record for 12 hour
 - People spent time around the focal plant, such as while completing routine tasks such as retrieving SD cards, replacing batteries, and watering potted plants. These activities would presumably dissuade hummingbirds from visiting the flowers on camera, so this video time was excluded during the video review process.
 
 - Not all data were included in analysis. In a previous script (01), data were filtered to EXCLUDE videos from the (1) afternoon of covering day (in treatment replicates), (2) days with no flowers, (3) non-priority dates, and (4) cameras that didn't have video effort (or visible flowers) pre and post.
-
 
 Here, I first to summarize to the camera level, rather than across plant species, to avoid inflating the video hours when >1 plant species in frame. When >1 plant species was present per camera, summarizing to species could lead to double/triple/quadruple counting of video hours.
 ```{r step2a, message = FALSE}
@@ -94,17 +97,6 @@ videos_with_sightings <- data_experiment %>%
 (sightings_total <- unique(videos_with_sightings$sighting_id) %>% length())
 
 #Note: number of sightings is less than number of rows in 'videos_with_sightings' because sometimes >1 plant in frame, and each plant gets a row for the same sighting.
-```
-
-**Effort for 'normal' visitation (pre period only)**
-```{r step2c, message = FALSE}
-#Number of hours, summarized across cameras
-hours_total_normal_visitation <- hours_per_camera_date %>%
-  filter(exp_phase == "pre") %>%
-  summarise(video_hours = sum(video_hours)) %>%
-  ungroup()
-
-hours_total_normal_visitation
 ```
 
 **Effort per experimental period**
@@ -460,3 +452,34 @@ establishment_days <- start_dates %>%
 establishment_days_sum <- calculate_basic_summary_stats(data = establishment_days, variable = days)
 establishment_days_sum
 ```
+
+## Step 7: Calculate effort for non-experiment data
+
+Data for 'normal' visitation/metanetwork
+```{r step7a, message = FALSE}
+hours_total_normal_visitation <- data_metanetwork %>%
+  distinct(year, patch, control_treatment, camera_num, date_video, exp_phase, file_id, video_length) %>%
+  group_by(year, patch, control_treatment, camera_num, date_video, exp_phase) %>%
+  summarise(video_hours = sum(video_length)) %>%
+  ungroup() %>%
+  summarise(video_hours = sum(video_hours)) %>%
+  ungroup()
+
+hours_total_normal_visitation
+```
+
+Data for sampling method analyses
+```{r step7b, message = FALSE}
+hours_total_sampling_method <- data_sampling_method %>%
+  distinct(year, patch, control_treatment, camera_num, date_video, exp_phase, file_id, video_length) %>%
+  group_by(year, patch, control_treatment, camera_num, date_video, exp_phase) %>%
+  summarise(video_hours = sum(video_length)) %>%
+  ungroup() %>%
+  summarise(video_hours = sum(video_hours)) %>%
+  ungroup()
+
+hours_total_sampling_method
+```
+
+
+
