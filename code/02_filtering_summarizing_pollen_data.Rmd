@@ -170,24 +170,25 @@ check02 <- pollen05 %>%
 
 Remove samples with no pollen, after calculating the percentage of slides without pollen
 ```{r step3}
-#How many slides with no pollen?
-slides_no_pollen <- pollen05 %>%
-  filter(pollen_yes_or_no == "N")
-
 #How many total slides?
 (total_slides <- unique(pollen05$slide_id) %>% length())
 
 #How many unique hummingbirds?
 (total_hbird_indls <- unique(pollen05$bird_id) %>% length())
 
+#How many slides with pollen?
+slides_with_pollen <- pollen05 %>%
+  filter(pollen_yes_or_no == "Y")
+
+(total_slides_with_pollen <- unique(slides_with_pollen$slide_id) %>% length())
+
 #What percentage of slides have pollen?
-(total_slides_no_pollen <- unique(pollen05$slide_id) %>% length())
-1 - (total_slides_no_pollen/total_slides)
+total_slides_with_pollen/total_slides
 
 #Remove slides with no pollen, because these slides do not provide any information about what flowers hummingbirds are visiting
 #Also add grouping variable for bird group
 pollen06 <- pollen05 %>%
-  filter(!(slide_id %in% slides_no_pollen$slide_id)) %>%
+  filter(slide_id %in% slides_with_pollen$slide_id) %>%
   mutate(bird_group = ifelse(bird_species == "GREH" | bird_species == "VISA", "greh_visa", "other")) 
 ```
 
@@ -195,7 +196,7 @@ pollen06 <- pollen05 %>%
 ```{r step4a}
 #Filter to data from Heliconia removal experiment (there was a pollen slide from the establishment period, which needed to be removed)
 data_for_experiment <- pollen06 %>%
-  filter(exp_phase == "capture_1" | exp_phase == "capture_2") 
+  filter(exp_phase == "capture_1" | exp_phase == "capture_2")
 ```
 
 Indicate which birds are pre-post recaps, i.e., caught in both capture sessions (and have pollen data)
@@ -227,9 +228,29 @@ recap_summary_greh_visa <- data_for_experiment %>%
   filter(bird_group == "greh_visa") %>%
   distinct(recap_y_n, bird_group, exp_phase, slide_id) %>%
   group_by(recap_y_n, bird_group, exp_phase) %>%
-  summarise(num_slides = n())
+  summarise(num_slides = n()) %>%
+  ungroup()
 
 recap_summary_greh_visa
+```
+
+Remove replicates that do not have pollen samples pre and post (because I am interested in the pre-to-post change)
+```{r}
+replicates_pre_and_post <- data_for_experiment %>%
+  distinct(year, patch, exp_phase, slide_id) %>%
+  group_by(year, patch, exp_phase) %>%
+  summarise(num_slides = n()) %>%
+  ungroup() %>%
+  pivot_wider(names_from = exp_phase, values_from = num_slides, values_fill = 0) %>%
+  filter(capture_1 > 0 & capture_2 > 0) %>%
+  mutate(year_patch = paste(year, patch, sep = "_"))
+
+data_for_experiment <- data_for_experiment %>%
+  mutate(year_patch = paste(year, patch, sep = "_")) %>%
+  filter(year_patch %in% replicates_pre_and_post$year_patch)
+
+#How many slides in this dataset?
+unique(data_for_experiment$slide_id) %>% length()
 ```
 
 ## Step 5: Filter data for 'normal' visitation
@@ -238,6 +259,9 @@ Remove data from 'post' period of treatment replicates (i.e., data affected by e
 ```{r step5}
 data_for_normal_visitation <- pollen06 %>%
   filter(!(control_treatment == "treatment" & exp_phase == "capture_2"))
+
+#How many slides in this dataset?
+unique(data_for_normal_visitation$slide_id) %>% length()
 ```
 
 ## Step 6: Filter data for analysis of sampling method
@@ -246,6 +270,9 @@ Want pollen and camera networks from the same time period, 'pre' only
 ```{r step6}
 data_for_sampling_method <- data_for_experiment %>%
   filter(exp_phase == "capture_1")
+
+#How many slides in this dataset?
+unique(data_for_sampling_method$slide_id) %>% length()
 ```
 
 ## Step 7: Summarize data for analysis
@@ -268,7 +295,6 @@ frequencies_for_pp_networks <- data_for_experiment %>%
 
 #This is similar to summary for experiment...EXCEPT that it is not summarized to level of pre/post and excludes data from 'post' period of treatment sites. This is the "meta-network", i.e., summary network of sub-sampled sites/networks
 frequencies_for_metanetwork <- data_for_normal_visitation %>%
-  filter(!(control_treatment == "treatment" & exp_phase == "capture_2")) %>%
   group_by(bird_species, bird_scientific_name, pollen_morphotype) %>%
   summarise(num_slides = n()) %>%
   ungroup()
