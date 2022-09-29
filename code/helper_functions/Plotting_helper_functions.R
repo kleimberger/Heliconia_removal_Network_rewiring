@@ -112,9 +112,10 @@ make_contrast_plot <- function(contrasts_df, xvar, shading = "none"){
       geom_hline(yintercept = 1, color = "black", linetype = "dashed", alpha = 0.8) + # add a line at 1 (no effect)
       theme_bw(base_size = 18) +
       scale_shape_manual(values = c(16, 17), labels = legend_text_labels, limits = c("all_spp", "greh_visa")) +
-      theme(legend.position = "top", legend.justification = "center", legend.text = element_text(size = 18), legend.title = element_text(size = 18),
+      theme(legend.position = "top", legend.justification = "center", legend.text = element_text(size = 18), legend.title = element_text(size = 18), 
+            plot.title = element_text(hjust = 0.5),
             panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-      labs(x = "", y = "Ratio", shape = "Bird group")
+      labs(x = "", y = "Experimental effect", shape = "Bird group")
     
   return(plot)
   
