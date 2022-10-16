@@ -1,6 +1,6 @@
-# Heliconia_removal_Network_rewiring
+# Plant-hummingbird pollination networks exhibit minimal rewiring after experimental removal of a locally abundant plant species
 
-Analyses for network rewiring manuscript (third chapter of dissertation)
+Analyses for [network rewiring manuscript](https://www.biorxiv.org/content/10.1101/2022.10.05.511021v1.abstract) (third chapter of dissertation)
 
 **Question** 
 
