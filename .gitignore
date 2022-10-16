@@ -39,6 +39,6 @@ vignettes/*.pdf
 .Renviron
 
 # Data and results (at least until publication)
-/data/
+/data/export/
 /results/
 
