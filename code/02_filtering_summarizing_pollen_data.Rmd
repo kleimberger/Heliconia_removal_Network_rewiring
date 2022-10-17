@@ -45,7 +45,7 @@ In this dataset, pollen samples were collected from captured hummingbirds and mo
 Pollen slides were then reviewed and any pollen morphotypes were identified; this is the resulting dataset. At a minimum, there is one row per microscope slide. If >1 pollen types were observed on a slide, then there are additional rows per slide.
 ```{r step1}
 #1. Rename 'site' in anticipation of matching column name in camera data (patch = site)
-pollen <- read.csv("data/import/data/pollen_on_birds/Pollen_slide_data_2012-2018.csv") %>%
+pollen <- read.csv("../data/import/data/pollen_on_birds/Pollen_slide_data_2012-2018.csv") %>%
   rename(patch = site)
 ```
 
@@ -127,7 +127,7 @@ capture_times_2018 <- pollen04 %>%
   distinct(year, patch, day_bird_id, bird_id, collection_time, slide_number) %>%
   group_by(year, patch, day_bird_id) %>%
   arrange(collection_time) %>%
-  mutate(order = 1:length(day_bird_id)) %>% 
+  mutate(order = row_number()) %>% 
   ungroup() %>%
   arrange(year, patch, day_bird_id, order)
 
