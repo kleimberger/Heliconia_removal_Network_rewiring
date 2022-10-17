@@ -423,11 +423,11 @@ results_multiplot
 ## Step 6: Export results
 ```{r step6}
 #Q1 + Q2
-write.csv(results_tidy_confint, "../results/analyses_sampling_method/tables/Sampling_method_results_summary_tables.csv") #model summaries
+write.csv(results_tidy_confint, "../results/analyses_sampling_method/tables/Sampling_method_results_summary_tables.csv", row.names = FALSE) #model summaries
 ggsave("../results/analyses_sampling_method/figures/Sampling_method_results_multiplot.png", results_multiplot, dpi = 300, units = "in", width = 8, height = 11)
 
 #Q1
-write.csv(specialization_emmeans, "../results/analyses_sampling_method/tables/Specialization_results_emmeans.csv")
-write.csv(specialization_contrasts, "../results/analyses_sampling_method/tables/Specialization_results_contrasts.csv") 
+write.csv(specialization_emmeans, "../results/analyses_sampling_method/tables/Specialization_results_emmeans.csv", row.names = FALSE)
+write.csv(specialization_contrasts, "../results/analyses_sampling_method/tables/Specialization_results_contrasts.csv", row.names = FALSE) 
 ggsave("../results/analyses_sampling_method/figures/Sampling_method_specialization_density_plot.png", specialization_density_plot, dpi = 300, units = "in", width = 9, height = 5)
 ```

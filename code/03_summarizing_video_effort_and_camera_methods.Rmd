@@ -51,10 +51,10 @@ data_metanetwork <- read.csv("../data/export/intermediate/Camera_data_filtered_f
 data_sampling_method <- read.csv("../data/export/intermediate/Camera_data_filtered_for_sampling_method.csv")
 
 #Camera location data
-camera_locations <- read.csv("../data/import/Camera_locations_2016-2018_20210705.csv")
+camera_locations <- read.csv("../data/import/data/cameras/Camera_locations_2016-2018.csv")
 
 #Experimental timeline data (what happened on each day)
-exp_info <- read.csv("../data/import/Experiment_dates_2016-2018.csv")
+exp_info <- read.csv("../data/import/data/Experiment_dates_2016-2018.csv")
 
 #Function to calculate basic summary stats (mean, median, etc.)
 source("../code/helper_functions/Calculate_basic_summary_stats.R")
@@ -394,13 +394,13 @@ floral_array_species <- camera_locations %>%
 floral_array_species 
 
 #Add scientific name, etc. for supplement
-plant_info <- read.csv("../data/import/Plant_codes_species_list.csv") %>%
-  select(family, species_name, plant_species = species_code)
+plant_info <- read.csv("../data/import/data/Plant_codes_species_list.csv") %>%
+  select(plant_family, plant_scientific_name, plant_species)
 
 floral_array_species_supp <- floral_array_species %>%
   left_join(plant_info) %>%
-  filter(!is.na(family)) %>%
-  arrange(family, species_name) %>%
+  filter(!is.na(plant_family)) %>%
+  arrange(plant_family, plant_scientific_name) %>%
   filter(plant_species != "HETO") #Remove HETO. Not really part of floral array/potted plants
 
 #Where there any species recorded in setup data that didn't end up in usable data?
@@ -408,7 +408,7 @@ check01 <- floral_array_species_supp %>%
   filter(!(plant_species %in% data_experiment$plant_species))
 
 #Export
-write.csv(floral_array_species_supp, "../data/export/supp_tables/List_of_floral_array_species_for_Supplement.csv")
+write.csv(floral_array_species_supp, "../data/export/supp_tables/List_of_floral_array_species_for_Supplement.csv", row.names = FALSE)
 ```
 
 ## Step 6: Calculate when floral arrays were established (i.e., how many days in advance of experiment start)
@@ -422,7 +422,7 @@ I need to calculate the number of days between floral array setup and the experi
 ```{r step6, warning = FALSE}
 #Identify the start dates for each replicate. Start date is generally capture_1, expect in replicates without captures (2016 p204, p49). Note that experimental day numbering ('exp_day') column in dataset starts *after* capture day, so I need to update that column to actually identify the start date
 start_dates <- exp_info %>%
-  select(year, patch, control_trmt, exp_phase, date, exp_day) %>%
+  select(year, patch, control_treatment, exp_phase, date, exp_day) %>%
   filter(exp_phase == "capture_1" | exp_phase == "capture_2" | exp_phase == "pre" | exp_phase == "post") %>%
   mutate(date = lubridate::mdy(date)) %>%
   arrange(year, patch, date) %>%
@@ -435,7 +435,7 @@ start_dates <- exp_info %>%
   
 #Identify the setup dates
 setup_dates <- exp_info %>%
-  select(year, patch, control_trmt, exp_phase, date, exp_day) %>%
+  select(year, patch, control_treatment, exp_phase, date, exp_day) %>%
   filter(exp_phase == "setup" | exp_phase == "setup_1") %>%
   mutate(date = lubridate::mdy(date)) %>%
   select(-exp_phase, -exp_day) %>%

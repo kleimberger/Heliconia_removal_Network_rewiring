@@ -48,7 +48,7 @@ library(ggplot2)
 ```{r step1, warning=FALSE}
 ## 1. Create column for unique camera ID
 ## 2. Convert start/end columns into period objects, so can treat them as times when filtering out afternoon videos from covering days
-data <- read.csv("../data/import/Camera_data_with_flower_counts_2016-2018_20220712.csv") %>%
+data <- read.csv("../data/import/data/cameras/Camera_data_with_flower_counts_2016-2018.csv") %>%
   mutate(camera_id = paste(year, patch, plant_species, camera_num, sep = "_")) %>% 
   mutate(across(c(video_start, video_end), ~lubridate::hm(.))) %>%
   mutate(across(c(sighting_start, sighting_end), ~lubridate::hms(.)))
@@ -70,8 +70,7 @@ check02 <- data %>%
 ## "Priority" = days in between capture sessions, omitting the day after cover day (for treatment sites) or its equivalent (for control sites)
 check03 <- data %>%
   filter(video_priority != 1) %>%
-  select(contains("day"), everything()) %>% 
-  arrange(exp_day, control_count_day, trmt_day_after_cover)
+  select(contains("day"), everything())
 
 ## Are there videos without any visible flowers?
 check06 <- data %>%
@@ -85,7 +84,7 @@ check04 <- data %>%
 ## Are there sightings from the afternoon of cover day? 
 ## Covering is a big disturbance to the site, so we should NOT use these data...and especially should not consider them 'pre' data!
 check05 <- data %>%
-  filter(cover_day == 1) %>%
+  filter(treatment_cover_day == 1) %>%
   filter(video_end >= lubridate::hm("11:30")) %>%
   filter(sightings_yes_or_no == "Y")
 ```
@@ -103,12 +102,12 @@ Remove sightings from afternoon of cover day (treatment sites only). Here, 'afte
 ```{r step3b}
 ## Videos that start (and end) after 11:30 (will just remove these)
 treatment_videos_pm <- data02 %>%
-  filter(cover_day == 1 & control_treatment == "treatment") %>%
+  filter(treatment_cover_day == 1 & control_treatment == "treatment") %>%
   filter(video_start > hm("11:30"))
 
 ## Videos that span the cutoff time (will change end time to 11:30 and remove sightings after this time)
 treatment_videos_am_pm <- data02 %>%
-  filter(cover_day == 1 & control_treatment == "treatment") %>%
+  filter(treatment_cover_day == 1 & control_treatment == "treatment") %>%
   filter(video_start < hm("11:30")) %>%
   filter(video_end > hm("11:30"))
 
@@ -203,12 +202,11 @@ Get files
 source("../code/helper_functions/Summarize_camera_data.R")
 
 ## Get scientific names for birds and plants (not just abbreviations). Will add after summarizing 
-bird_names <- read.csv("../data/import/Hummingbird_codes_species_list.csv") %>%
-  select(bird_species = code, bird_scientific_name = scientific_name)
+bird_names <- read.csv("../data/import/data/Hummingbird_codes_species_list.csv")
 
 ## Plant names. Will use this for camera data only; for pollen data, do not always know exact plant species associated with each pollen morphotype
-plant_names <- read.csv("../data/import/Plant_codes_species_list.csv") %>%
-  select(plant_species = species_code, plant_scientific_name = species_name) %>%
+plant_names <- read.csv("../data/import/data/Plant_codes_species_list.csv") %>%
+  select(plant_species, plant_scientific_name) %>%
   filter(!is.na(plant_species) & plant_species != "") #Get rid of blank rows
 ```
 
@@ -276,13 +274,13 @@ honest_vs_rob
 ## Step 10: Export
 ```{r step10}
 ## Camera data, filtered but not summarized
-write.csv(data_for_experiment, "../data/export/intermediate/Camera_data_filtered_for_experiment.csv")
-write.csv(data_for_metanetwork, "../data/export/intermediate/Camera_data_filtered_for_metanetwork.csv") #'normal' visitation
-write.csv(data_for_sampling_method, "../data/export/intermediate/Camera_data_filtered_for_sampling_method.csv")
+write.csv(data_for_experiment, "../data/export/intermediate/Camera_data_filtered_for_experiment.csv", row.names = FALSE)
+write.csv(data_for_metanetwork, "../data/export/intermediate/Camera_data_filtered_for_metanetwork.csv", row.names = FALSE) #'normal' visitation
+write.csv(data_for_sampling_method, "../data/export/intermediate/Camera_data_filtered_for_sampling_method.csv", row.names = FALSE)
 
 ## Camera data, summarized for analyses using pre and post networks from individual replicates
-write.csv(sighting_rates_for_pp_networks, "../data/export/for_analysis/Camera_data_summarized_for_pp_networks.csv")
+write.csv(sighting_rates_for_pp_networks, "../data/export/for_analysis/Camera_data_summarized_for_pp_networks.csv", row.names = FALSE)
 
 ## Camera data, summarized for visualization of meta-network
-write.csv(sighting_rates_for_metanetwork, "../data/export/for_analysis/Camera_data_summarized_for_metanetwork.csv") 
+write.csv(sighting_rates_for_metanetwork, "../data/export/for_analysis/Camera_data_summarized_for_metanetwork.csv", row.names = FALSE) 
 ```

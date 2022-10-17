@@ -353,9 +353,9 @@ completeness_results_for_analysis <- completeness_results %>%
 ## Step 6: Export results
 
 ```{r step6}
-write.csv(specialization_results_for_analysis, "../data/export/for_analysis/Network_specialization_for_analysis.csv")
-write.csv(turnover_results_for_analysis, "../data/export/for_analysis/Network_dissimilarity_for_analysis.csv")
-write.csv(completeness_results_for_analysis, "../data/export/for_analysis/Sampling_completeness_for_analysis.csv")
+write.csv(specialization_results_for_analysis, "../data/export/for_analysis/Network_specialization_for_analysis.csv", row.names = FALSE)
+write.csv(turnover_results_for_analysis, "../data/export/for_analysis/Network_dissimilarity_for_analysis.csv", row.names = FALSE)
+write.csv(completeness_results_for_analysis, "../data/export/for_analysis/Sampling_completeness_for_analysis.csv", row.names = FALSE)
 
 path_name <- c("../results/network_visualizations/pre_post_networks_experiment")
 walk2(network_results$plotname, network_results$network_plot, ~ggplot2::ggsave(filename = .x, path = path_name, plot = .y, height = 12, width = 10, bg = "white", device = "png"))

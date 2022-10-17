@@ -416,7 +416,7 @@ from the dates (‘post’ period is not an option because it’s affected by
 <h2>Step 1: Import camera data + prepare for filtering</h2>
 <pre class="r"><code>## 1. Create column for unique camera ID
 ## 2. Convert start/end columns into period objects, so can treat them as times when filtering out afternoon videos from covering days
-data &lt;- read.csv(&quot;../data/import/Camera_data_with_flower_counts_2016-2018_20220712.csv&quot;) %&gt;%
+data &lt;- read.csv(&quot;../data/import/data/cameras/Camera_data_with_flower_counts_2016-2018.csv&quot;) %&gt;%
   mutate(camera_id = paste(year, patch, plant_species, camera_num, sep = &quot;_&quot;)) %&gt;% 
   mutate(across(c(video_start, video_end), ~lubridate::hm(.))) %&gt;%
   mutate(across(c(sighting_start, sighting_end), ~lubridate::hms(.)))</code></pre>
@@ -437,8 +437,7 @@ check02 &lt;- data %&gt;%
 ## &quot;Priority&quot; = days in between capture sessions, omitting the day after cover day (for treatment sites) or its equivalent (for control sites)
 check03 &lt;- data %&gt;%
   filter(video_priority != 1) %&gt;%
-  select(contains(&quot;day&quot;), everything()) %&gt;% 
-  arrange(exp_day, control_count_day, trmt_day_after_cover)
+  select(contains(&quot;day&quot;), everything())
 
 ## Are there videos without any visible flowers?
 check06 &lt;- data %&gt;%
@@ -452,7 +451,7 @@ check04 &lt;- data %&gt;%
 ## Are there sightings from the afternoon of cover day? 
 ## Covering is a big disturbance to the site, so we should NOT use these data...and especially should not consider them &#39;pre&#39; data!
 check05 &lt;- data %&gt;%
-  filter(cover_day == 1) %&gt;%
+  filter(treatment_cover_day == 1) %&gt;%
   filter(video_end &gt;= lubridate::hm(&quot;11:30&quot;)) %&gt;%
   filter(sightings_yes_or_no == &quot;Y&quot;)</code></pre>
 </div>
@@ -467,12 +466,12 @@ data02 &lt;- data %&gt;%
 Here, ‘afternoon’ = videos starting after 11:30 AM</p>
 <pre class="r"><code>## Videos that start (and end) after 11:30 (will just remove these)
 treatment_videos_pm &lt;- data02 %&gt;%
-  filter(cover_day == 1 &amp; control_treatment == &quot;treatment&quot;) %&gt;%
+  filter(treatment_cover_day == 1 &amp; control_treatment == &quot;treatment&quot;) %&gt;%
   filter(video_start &gt; hm(&quot;11:30&quot;))
 
 ## Videos that span the cutoff time (will change end time to 11:30 and remove sightings after this time)
 treatment_videos_am_pm &lt;- data02 %&gt;%
-  filter(cover_day == 1 &amp; control_treatment == &quot;treatment&quot;) %&gt;%
+  filter(treatment_cover_day == 1 &amp; control_treatment == &quot;treatment&quot;) %&gt;%
   filter(video_start &lt; hm(&quot;11:30&quot;)) %&gt;%
   filter(video_end &gt; hm(&quot;11:30&quot;))
 
@@ -510,7 +509,7 @@ hours_total</code></pre>
 <pre><code>## # A tibble: 1 × 1
 ##   video_hours
 ##         &lt;dbl&gt;
-## 1      20735.</code></pre>
+## 1      20759.</code></pre>
 </div>
 <div id="step-4-filter-data-for-analysis-of-experiment" class="section level2">
 <h2>Step 4: Filter data for analysis of experiment</h2>
@@ -581,12 +580,11 @@ am interested in the interactions across sites and years. This is the
 source(&quot;../code/helper_functions/Summarize_camera_data.R&quot;)
 
 ## Get scientific names for birds and plants (not just abbreviations). Will add after summarizing 
-bird_names &lt;- read.csv(&quot;../data/import/Hummingbird_codes_species_list.csv&quot;) %&gt;%
-  select(bird_species = code, bird_scientific_name = scientific_name)
+bird_names &lt;- read.csv(&quot;../data/import/data/Hummingbird_codes_species_list.csv&quot;)
 
 ## Plant names. Will use this for camera data only; for pollen data, do not always know exact plant species associated with each pollen morphotype
-plant_names &lt;- read.csv(&quot;../data/import/Plant_codes_species_list.csv&quot;) %&gt;%
-  select(plant_species = species_code, plant_scientific_name = species_name) %&gt;%
+plant_names &lt;- read.csv(&quot;../data/import/data/Plant_codes_species_list.csv&quot;) %&gt;%
+  select(plant_species, plant_scientific_name) %&gt;%
   filter(!is.na(plant_species) &amp; plant_species != &quot;&quot;) #Get rid of blank rows</code></pre>
 <p>Summarize data</p>
 <pre class="r"><code>## Pre-post networks
@@ -658,31 +656,31 @@ honest_vs_rob</code></pre>
 <pre><code>## # A tibble: 3 × 2
 ##   visit_type     num_visits
 ##   &lt;chr&gt;               &lt;int&gt;
-## 1 honest               2448
+## 1 honest               2427
 ## 2 honest_and_rob        101
 ## 3 rob                   208</code></pre>
 <pre class="r"><code>#Percentage of visits that involve robbing (out of total where visit type could be determined)
 (total_confirmed = sum(honest_vs_rob$num_visits))</code></pre>
-<pre><code>## [1] 2757</code></pre>
+<pre><code>## [1] 2736</code></pre>
 <pre class="r"><code>(total_rob = honest_vs_rob %&gt;% filter(visit_type == &quot;rob&quot;) %&gt;% pull(num_visits))</code></pre>
 <pre><code>## [1] 208</code></pre>
 <pre class="r"><code>(total_honest_rob = honest_vs_rob %&gt;% filter(visit_type == &quot;honest_and_rob&quot;) %&gt;% pull(num_visits))</code></pre>
 <pre><code>## [1] 101</code></pre>
 <pre class="r"><code>(total_rob + total_honest_rob)/total_confirmed</code></pre>
-<pre><code>## [1] 0.1120783</code></pre>
+<pre><code>## [1] 0.1129386</code></pre>
 </div>
 <div id="step-10-export" class="section level2">
 <h2>Step 10: Export</h2>
 <pre class="r"><code>## Camera data, filtered but not summarized
-write.csv(data_for_experiment, &quot;../data/export/intermediate/Camera_data_filtered_for_experiment.csv&quot;)
-write.csv(data_for_metanetwork, &quot;../data/export/intermediate/Camera_data_filtered_for_metanetwork.csv&quot;) #&#39;normal&#39; visitation
-write.csv(data_for_sampling_method, &quot;../data/export/intermediate/Camera_data_filtered_for_sampling_method.csv&quot;)
+write.csv(data_for_experiment, &quot;../data/export/intermediate/Camera_data_filtered_for_experiment.csv&quot;, row.names = FALSE)
+write.csv(data_for_metanetwork, &quot;../data/export/intermediate/Camera_data_filtered_for_metanetwork.csv&quot;, row.names = FALSE) #&#39;normal&#39; visitation
+write.csv(data_for_sampling_method, &quot;../data/export/intermediate/Camera_data_filtered_for_sampling_method.csv&quot;, row.names = FALSE)
 
 ## Camera data, summarized for analyses using pre and post networks from individual replicates
-write.csv(sighting_rates_for_pp_networks, &quot;../data/export/for_analysis/Camera_data_summarized_for_pp_networks.csv&quot;)
+write.csv(sighting_rates_for_pp_networks, &quot;../data/export/for_analysis/Camera_data_summarized_for_pp_networks.csv&quot;, row.names = FALSE)
 
 ## Camera data, summarized for visualization of meta-network
-write.csv(sighting_rates_for_metanetwork, &quot;../data/export/for_analysis/Camera_data_summarized_for_metanetwork.csv&quot;) </code></pre>
+write.csv(sighting_rates_for_metanetwork, &quot;../data/export/for_analysis/Camera_data_summarized_for_metanetwork.csv&quot;, row.names = FALSE) </code></pre>
 </div>
 
 

@@ -153,8 +153,8 @@ completeness_contrasts <- tibble(model_number = c(1, 2, 3),
 ## Step 5: Export results
 ```{r step5}
 path_name <- c("../results/analyses_sampling_completeness")
-write.csv(completeness_sum, file.path(path_name, "tables/Sampling_completeness_summary.csv"))
-write.csv(completeness_contrasts, file.path(path_name, "tables/Sampling_completeness_contrasts.csv"))
+write.csv(completeness_sum, file.path(path_name, "tables/Sampling_completeness_summary.csv"), row.names = FALSE)
+write.csv(completeness_contrasts, file.path(path_name, "tables/Sampling_completeness_contrasts.csv"), row.names = FALSE)
 ggsave(file.path(path_name, "figures/Sampling_completeness_plot.png"), plot = chao1_plot, width = 7, height = 7, units = "in", dpi = 300)
 ```
 
