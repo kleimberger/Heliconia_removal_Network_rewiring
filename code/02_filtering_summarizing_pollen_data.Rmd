@@ -45,7 +45,7 @@ In this dataset, pollen samples were collected from captured hummingbirds and mo
 Pollen slides were then reviewed and any pollen morphotypes were identified; this is the resulting dataset. At a minimum, there is one row per microscope slide. If >1 pollen types were observed on a slide, then there are additional rows per slide.
 ```{r step1}
 #1. Rename 'site' in anticipation of matching column name in camera data (patch = site)
-pollen <- read.csv("data/import/data/pollen_on_birds/Pollen_slide_data_2012-2018.csv") %>%
+pollen <- read.csv("../data/import/data/pollen_on_birds/Pollen_slide_data_2012-2018.csv") %>%
   rename(patch = site)
 ```
 
@@ -198,9 +198,10 @@ total_slides_with_pollen/total_slides
 ## Step 4: Filter data for analysis of experiment
 ```{r step4a}
 #Filter to data from Heliconia removal experiment (there was a pollen slide from the establishment period, which needed to be removed)
-#Also add grouping variable for bird group
+#Remove slides with no pollen, because these slides do not provide any information about what flowers hummingbirds are visiting
 data_for_experiment <- pollen05 %>%
   filter(exp_phase == "capture_1" | exp_phase == "capture_2") %>%
+  filter(slide_id %in% slides_with_pollen$slide_id) %>%
   mutate(bird_group = ifelse(bird_species == "GREH" | bird_species == "VISA", "greh_visa", "other"))
 ```
 
@@ -215,7 +216,7 @@ pre_post_recaps <- data_for_experiment %>%
   pivot_wider(names_from = exp_phase, values_from = num_slides) %>%
   filter(capture_1 == 1 & capture_2 == 1)
 
-#Add recap status and bird group to data. Bird group is useful because I'll want to analyze Heliconia specialists (green hermits and violet sabrewings) separately from rest of hummingbird species
+#Add recap status to data
 data_for_experiment <- data_for_experiment %>%
   mutate(recap_y_n = ifelse(bird_id %in% pre_post_recaps$bird_id, "yes", "no"))
 
@@ -265,7 +266,8 @@ unique(data_for_experiment$slide_id) %>% length()
 #Remove slides with no pollen, because these slides do not provide any information about what flowers hummingbirds are visiting
 data_for_normal_visitation <- pollen05 %>%
   filter(!(control_treatment == "treatment" & exp_phase == "capture_2")) %>%
-  filter(slide_id %in% slides_with_pollen$slide_id)
+  filter(slide_id %in% slides_with_pollen$slide_id) %>%
+  mutate(bird_group = ifelse(bird_species == "GREH" | bird_species == "VISA", "greh_visa", "other"))
 
 #How many slides in this dataset?
 unique(data_for_normal_visitation$slide_id) %>% length()
@@ -278,7 +280,8 @@ unique(data_for_normal_visitation$slide_id) %>% length()
 #Remove slides with no pollen, because these slides do not provide any information about what flowers hummingbirds are visiting
 data_for_sampling_method <- pollen05 %>%
   filter(exp_phase == "capture_1") %>%
-  filter(slide_id %in% slides_with_pollen$slide_id)
+  filter(slide_id %in% slides_with_pollen$slide_id) %>%
+  mutate(bird_group = ifelse(bird_species == "GREH" | bird_species == "VISA", "greh_visa", "other"))
 
 #How many slides in this dataset?
 unique(data_for_sampling_method$slide_id) %>% length()
