@@ -79,6 +79,10 @@ plan(multisession)
 
 #Set seed to make code reproducible
 set.seed(1)
+
+#Install package to help with sizing figures for export
+#remotes::install_github("idmn/ggview")
+library(ggview)
 ```
 
 ## Step 1: Import functions and datasets for analysis
@@ -110,8 +114,7 @@ specialization_network_data <- read.csv("../data/export/for_analysis/Network_spe
 **Get data for individual specialization** (i.e., # pollen morphotypes/hummingbird, pollen only)
 ```{r step1c, message = FALSE}
 #1. Get data
-specialization_individual_data <- read.csv("../data/export/for_analysis/Pollen_data_summarized_for_pp_richness.csv") %>%
-  select(-X) %>%
+specialization_individual_data <- read.csv("data/export/for_analysis/Pollen_data_summarized_for_pp_richness.csv") %>%
   mutate(year_patch = paste(year, patch, sep = "_"))
 
 #2. Remove replicates that don't have a complete pre-post pair

@@ -45,7 +45,7 @@ In this dataset, pollen samples were collected from captured hummingbirds and mo
 Pollen slides were then reviewed and any pollen morphotypes were identified; this is the resulting dataset. At a minimum, there is one row per microscope slide. If >1 pollen types were observed on a slide, then there are additional rows per slide.
 ```{r step1}
 #1. Rename 'site' in anticipation of matching column name in camera data (patch = site)
-pollen <- read.csv("../data/import/data/pollen_on_birds/Pollen_slide_data_2012-2018.csv") %>%
+pollen <- read.csv("data/import/data/pollen_on_birds/Pollen_slide_data_2012-2018.csv") %>%
   rename(patch = site)
 ```
 
@@ -61,7 +61,7 @@ pollen02 <- pollen %>%
   filter(year >= 2016) %>%
   filter(!is.na(control_treatment)) %>% 
   filter(!is.na(bird_species)) %>%
-  filter(!is.na(band_number) | (is.na(band_number) & !is.na(colors))) 
+  filter(!is.na(bird_id))
 ```
 
 **Add up pollen counts from same morphotypes within a slide ID**
@@ -94,6 +94,10 @@ This is an additional quality check that was created during an earlier processin
 #Remove samples where there is a clear issue. Could also remove the NA situations, but this risks removing important data. Given the overall low number of captures (samples) for this analysis, I've decided to err on the side of only removing known problems.
 pollen04 <- pollen03 %>%
   filter(record_in_capture_data != "no")
+
+#How many birds removed here?
+check <- pollen03 %>%
+  filter(record_in_capture_data == "no")
 ```
 
 **Deal with 'day recaptures', i.e., multiple captures of same bird (and therefore multiple pollen samples) from same capture session**
@@ -111,7 +115,7 @@ day_recaps <- pollen04 %>%
   group_by(year, patch, control_treatment, day_bird_id, bird_id) %>%
   summarise(num_slides = n()) %>%
   ungroup() %>%
-  filter(num_slides > 1) 
+  filter(num_slides > 1)
 ```
 
 There are 14 birds with >1 sample per capture session. How to resolve? 
@@ -168,7 +172,6 @@ check02 <- pollen05 %>%
 
 ## Step 3: Filter data for all analyses
 
-Remove samples with no pollen, after calculating the percentage of slides without pollen
 ```{r step3}
 #How many total slides?
 (total_slides <- unique(pollen05$slide_id) %>% length())
@@ -182,21 +185,23 @@ slides_with_pollen <- pollen05 %>%
 
 (total_slides_with_pollen <- unique(slides_with_pollen$slide_id) %>% length())
 
+#How many slides with no pollen?
+slides_no_pollen <- pollen05 %>%
+  filter(pollen_yes_or_no == "N")
+
+(total_slides_no_pollen <- unique(slides_no_pollen$slide_id) %>% length())
+
 #What percentage of slides have pollen?
 total_slides_with_pollen/total_slides
-
-#Remove slides with no pollen, because these slides do not provide any information about what flowers hummingbirds are visiting
-#Also add grouping variable for bird group
-pollen06 <- pollen05 %>%
-  filter(slide_id %in% slides_with_pollen$slide_id) %>%
-  mutate(bird_group = ifelse(bird_species == "GREH" | bird_species == "VISA", "greh_visa", "other")) 
 ```
 
 ## Step 4: Filter data for analysis of experiment
 ```{r step4a}
 #Filter to data from Heliconia removal experiment (there was a pollen slide from the establishment period, which needed to be removed)
-data_for_experiment <- pollen06 %>%
-  filter(exp_phase == "capture_1" | exp_phase == "capture_2")
+#Also add grouping variable for bird group
+data_for_experiment <- pollen05 %>%
+  filter(exp_phase == "capture_1" | exp_phase == "capture_2") %>%
+  mutate(bird_group = ifelse(bird_species == "GREH" | bird_species == "VISA", "greh_visa", "other"))
 ```
 
 Indicate which birds are pre-post recaps, i.e., caught in both capture sessions (and have pollen data)
@@ -255,10 +260,12 @@ unique(data_for_experiment$slide_id) %>% length()
 
 ## Step 5: Filter data for 'normal' visitation
 
-Remove data from 'post' period of treatment replicates (i.e., data affected by experimental *Heliconia* removal)
 ```{r step5}
-data_for_normal_visitation <- pollen06 %>%
-  filter(!(control_treatment == "treatment" & exp_phase == "capture_2"))
+#Remove data from 'post' period of treatment replicates (i.e., data affected by experimental *Heliconia* removal)
+#Remove slides with no pollen, because these slides do not provide any information about what flowers hummingbirds are visiting
+data_for_normal_visitation <- pollen05 %>%
+  filter(!(control_treatment == "treatment" & exp_phase == "capture_2")) %>%
+  filter(slide_id %in% slides_with_pollen$slide_id)
 
 #How many slides in this dataset?
 unique(data_for_normal_visitation$slide_id) %>% length()
@@ -266,10 +273,12 @@ unique(data_for_normal_visitation$slide_id) %>% length()
 
 ## Step 6: Filter data for analysis of sampling method
 
-Want pollen and camera networks from the same time period, 'pre' only
 ```{r step6}
-data_for_sampling_method <- data_for_experiment %>%
-  filter(exp_phase == "capture_1")
+#Want pollen and camera networks from the same time period, 'pre' only
+#Remove slides with no pollen, because these slides do not provide any information about what flowers hummingbirds are visiting
+data_for_sampling_method <- pollen05 %>%
+  filter(exp_phase == "capture_1") %>%
+  filter(slide_id %in% slides_with_pollen$slide_id)
 
 #How many slides in this dataset?
 unique(data_for_sampling_method$slide_id) %>% length()
