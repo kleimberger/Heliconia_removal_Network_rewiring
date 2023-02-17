@@ -14,8 +14,8 @@ make_interaction_plot <- function(ggeffects_df, yvar, ymax){
   # if(yvar == "d"){ylabel <-  c(expression(atop("Species specialization", paste("(mean "*italic(d)*"')"))))}
   # if(yvar == "species.specificity.index"){ylabel <- c(expression(atop("Species specialization", paste("(mean SSI)"))))}
   
-  if(yvar == "H2"){ylabel <- c(expression(paste(italic(H[2])*"'")))}
-  if(yvar == "d"){ylabel <-  c(expression(paste("mean "*italic(d)*"'")))}
+  if(yvar == "H2"){ylabel <- c(expression(paste(italic(H[2])*"′")))}
+  if(yvar == "d"){ylabel <-  c(expression(paste("mean "*italic(d)*"′")))}
   if(yvar == "species.specificity.index"){ylabel <- c("mean SSI")}
   if(yvar == "num_morphotypes"){ylabel <- c("# morphotypes")}
   
@@ -32,7 +32,7 @@ make_interaction_plot <- function(ggeffects_df, yvar, ymax){
       geom_line(aes(group = group), position = position_dodge(0.25), alpha = 0.6, size = 1) +
       geom_errorbar(aes(ymin = conf.low, ymax = conf.high), position = position_dodge(width = 0.25), width = 0.00, size = 1) +
       theme_bw(base_size = 18) +
-      theme(legend.position = "bottom", legend.direction = "horizontal", panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+      theme(legend.position = "bottom", legend.direction = "horizontal", panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.text = element_text(size = 18)) +
       scale_y_continuous(labels = scales::number_format(accuracy = 0.1, decimal.mark = '.')) +
       scale_color_manual(values = colors, labels = group_labels) +
       scale_shape_manual(values = shapes, labels = group_labels) +
@@ -59,12 +59,13 @@ make_control_vs_treatment_plot <- function(ggeffects_df, yvar, ymax){
     ggplot(data = ., aes(x = x, y = predicted)) + 
     geom_point(aes(x = x, y = predicted), position = position_dodge(width = 0.25), size = 4) +
     geom_errorbar(aes(ymin = conf.low, ymax = conf.high), position = position_dodge(width = 0.25), width = 0.0, size = 1) +
-    theme_bw(base_size = 20) +
+    theme_bw(base_size = 18) +
     theme(legend.position = "none",
           legend.direction = "horizontal",
           panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
-          plot.title = element_text(hjust = 0.5)) +
+          plot.title = element_text(hjust = 0.5),
+          axis.text = element_text(size = 18)) +
     labs(x = "", y = ylabel, shape = "", color = "") +
     ylim(0, ymax)
   
@@ -112,7 +113,7 @@ make_contrast_plot <- function(contrasts_df, xvar, shading = "none"){
       geom_hline(yintercept = 1, color = "black", linetype = "dashed", alpha = 0.8) + # add a line at 1 (no effect)
       theme_bw(base_size = 18) +
       scale_shape_manual(values = c(16, 17), labels = legend_text_labels, limits = c("all_spp", "greh_visa")) +
-      theme(legend.position = "top", legend.justification = "center", legend.text = element_text(size = 18), legend.title = element_text(size = 18), 
+      theme(legend.position = "top", legend.justification = "center", legend.text = element_text(size = 18), legend.title = element_text(size = 18), axis.text = element_text(size = 18),
             plot.title = element_text(hjust = 0.5),
             panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
       labs(x = "", y = "Experimental effect", shape = "Bird group")
