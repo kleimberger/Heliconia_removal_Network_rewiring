@@ -675,7 +675,7 @@ contrast_plot_individual <- contrasts_of_contrasts %>%
     annotation_custom(rasterGrob(pollen_icon, width = 0.25), xmin = 1, xmax = 2, ymin = 5, ymax = Inf)
 
 contrast_plot_individual
-ggview(units = "in", width = 9, height = 9)
+# ggview(units = "in", width = 9, height = 9)
 ```
 
 Interaction turnover
@@ -698,7 +698,7 @@ contrast_plot_turnover <- contrasts_of_contrasts %>%
     annotation_custom(rasterGrob(camera_icon, width = 0.25), xmin = 1, xmax = 3, ymin = 3.75, ymax = Inf)
 
 contrast_plot_turnover
-ggview(units = "in", width = 9, height = 9)
+# ggview(units = "in", width = 9, height = 9)
 ```
 
 Species and network-level specialization
@@ -778,7 +778,7 @@ contrast_plot_camera_network <- contrasts_of_contrasts %>%
 contrast_multiplot_species_network <- ggarrange(contrast_plot_pollen_species, contrast_plot_pollen_network, contrast_plot_camera_species, contrast_plot_camera_network,
                                                 common.legend = TRUE, ncol = 2, nrow = 2, align = "h", legend = "bottom", labels = "AUTO", font.label = list(size = 24, face = "plain"), widths = c(1, 1.5))
 contrast_multiplot_species_network
-ggview(units = "in", width = 14, height = 12)
+# ggview(units = "in", width = 14, height = 12)
 ```
 
 ## Step 6: Export results 
@@ -801,7 +801,7 @@ ggsave(file.path(path_name, "Interaction_multiplot_species_and_network_gv.png"),
 ggsave(file.path(path_name, "Interaction_multiplot_individual.png"), interaction_multiplot_individual, dpi = 300, units = "in", width = 9, height = 9, bg = "white")
 
 #Contrast plots
-ggsave(file.path(path_name, "Contrast_individual.png"), contrast_plot_individual, dpi = 300, units = "in", width = 11, height = 9, bg = "white")
+ggsave(file.path(path_name, "Contrast_individual.png"), contrast_plot_individual, dpi = 300, units = "in", width = 9, height = 9, bg = "white")
 ggsave(file.path(path_name, "Contrast_turnover.png"), contrast_plot_turnover, dpi = 300, units = "in", width = 9, height = 9, bg = "white")
 ggsave(file.path(path_name, "Contrast_multiplot_species_and_network.png"), contrast_multiplot_species_network, dpi = 300, units = "in", width = 14, height = 12, bg = "white")
 ```

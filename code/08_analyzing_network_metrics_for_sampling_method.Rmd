@@ -94,8 +94,8 @@ response_variable_sum
 
 #Are visitation networks more specialized than pollen networks, as predicted?
 #Make a plot to visually examine. Will also analyze statistically in next step
-h2_label <- expression(paste(italic(H[2])*"'"))
-d_label <- expression(paste("mean "*italic(d)*"'"))
+h2_label <- expression(paste(italic(H[2])*"′"))
+d_label <- expression(paste("mean "*italic(d)*"′"))
 ssi_label <- expression("mean~SSI")
 
 #As density plot
@@ -350,8 +350,8 @@ specialization_contrasts <- specialization_emmeans_contrasts %>%
 #Function to make plot
 make_specialization_plot <- function(ggeffects, yvar){
   
-  if(yvar == "H2"){ylabel <- c(expression(paste(italic(H[2])*"'")))}
-  if(yvar == "d"){ylabel <-  c(expression(paste("mean "*italic(d)*"'")))}
+  if(yvar == "H2"){ylabel <- c(expression(paste(italic(H[2])*"′")))}
+  if(yvar == "d"){ylabel <-  c(expression(paste("mean "*italic(d)*"′")))}
   if(yvar == "species.specificity.index"){ylabel <- c("mean SSI")}
   
   plot <- ggeffects %>%
@@ -391,7 +391,7 @@ make_correlation_plot <- function(ggeffects, data, yvar){
     mutate(outlier = ifelse(yvar == "species.specificity.index" & year_patch == "2018_60", "yes", "no"))
   
   plot <- ggplot(data = ggeffects, aes(x = x, y = predicted)) + 
-    geom_line(size = 1) +
+    geom_line(size = 0.5, lty = 'dashed') +
     geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.25) +
     geom_point(data = data, aes(x = visitation_value_transform, y = pollen_value_transform, shape = outlier)) +
     theme_bw(base_size = 20) +
@@ -416,7 +416,7 @@ all_results <- bind_rows(specialization_results_plots, correlation_results_plots
   mutate(metric = factor(metric, levels = c("H2", "d", "species.specificity.index"))) %>%
   arrange(metric, model_number)
 
-results_multiplot <- ggarrange(plotlist = all_results$predicted_plot, ncol = 2, nrow = 3)
+results_multiplot <- ggarrange(plotlist = all_results$predicted_plot, ncol = 2, nrow = 3, labels = "AUTO", font.label = list(size = 24, face = "plain"))
 results_multiplot
 ```
 
