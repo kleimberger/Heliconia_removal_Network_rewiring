@@ -3,7 +3,10 @@
 ############################
 #Plot estimated marginals means for:
 #control pre, control post, treatment pre, treatment post
-make_interaction_plot <- function(ggeffects_df, yvar, ymax){
+make_interaction_plot <- function(ggeffects_df, yvar, ymax, sampling_method, add_icon = TRUE){
+  
+  camera_icon <-  png::readPNG("../code/camera.png")
+  pollen_icon <-  png::readPNG("../code/pollen.png")
   
   #Colors and shapes
   colors <- c("#0E0D37", "#BA0022") #blue, red
@@ -23,7 +26,7 @@ make_interaction_plot <- function(ggeffects_df, yvar, ymax){
   group_labels <- c("control" = "Control", "treatment" = "Treatment")
   legend_label <- c(expression(paste(italic("Heliconia "), "removal", sep = "")))
  
-  #Plotting by hand for increased customizability
+  #Plotting by hand for increased customization
   plot <- ggeffects_df %>%
     mutate(group = factor(group, levels = c("control", "treatment"), labels = c("Control", "Treatment"))) %>%
     mutate(x = factor(x, levels = c("pre", "post"), labels = c("Pre", "Post"))) %>%
@@ -37,8 +40,25 @@ make_interaction_plot <- function(ggeffects_df, yvar, ymax){
       scale_color_manual(values = colors, labels = group_labels) +
       scale_shape_manual(values = shapes, labels = group_labels) +
       labs(x = "Experimental period", y = ylabel, colour = legend_label, shape = legend_label) +
-      ylim(0, ymax)
+      coord_cartesian(ylim = c(0, ymax), xlim = c(1, 2), clip = "off")
+  
+  #Add icons to plots
+  if(add_icon == TRUE & sampling_method == "pollen"){
     
+    plot <- plot +
+      theme(plot.margin = unit(c(3, 1, 0.5, 0.5), "lines")) + #Default plot margins in theme_bw are 1, 1, 0.5, 0.5 (top, right, bottom, left)
+      annotation_custom(rasterGrob(pollen_icon, width = 0.25), xmin = 1, xmax = 2, ymin = ymax * 1.25, ymax = Inf)
+    
+  }
+  
+  if(add_icon == TRUE & sampling_method == "camera"){
+    
+    plot <- plot +
+      theme(plot.margin = unit(c(3, 1, 0.5, 0.5), "lines")) + #Default plot margins in theme_bw are 1, 1, 0.5, 0.5 (top, right, bottom, left)
+      annotation_custom(rasterGrob(camera_icon, width = 0.25), xmin = 1, xmax = 2, ymin = ymax * 1.25, ymax = Inf)
+    
+  }
+  
   return(plot)
   
 }
