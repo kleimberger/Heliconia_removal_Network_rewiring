@@ -202,7 +202,11 @@ total_slides_with_pollen/total_slides
 data_for_experiment <- pollen05 %>%
   filter(exp_phase == "capture_1" | exp_phase == "capture_2") %>%
   filter(slide_id %in% slides_with_pollen$slide_id) %>%
-  mutate(bird_group = ifelse(bird_species == "GREH" | bird_species == "VISA", "greh_visa", "other"))
+  mutate(bird_group = ifelse(bird_species == "GREH" | bird_species == "VISA", "greh_visa", "other")) %>%
+  mutate(year_patch = paste(year, patch, sep = "_"))
+
+#How many slides in this dataset?
+unique(data_for_experiment$slide_id) %>% length()
 ```
 
 Indicate which birds are pre-post recaps, i.e., caught in both capture sessions (and have pollen data)
@@ -220,10 +224,14 @@ pre_post_recaps <- data_for_experiment %>%
 data_for_experiment <- data_for_experiment %>%
   mutate(recap_y_n = ifelse(bird_id %in% pre_post_recaps$bird_id, "yes", "no"))
 
+#How many slides in this dataset?
+unique(data_for_experiment$slide_id) %>% length()
+
 #How many recaps were there?
 #Recaptures of all species
 recap_summary <- data_for_experiment %>%
   distinct(slide_id, bird_species, bird_id, exp_phase, recap_y_n) %>%
+  filter(recap_y_n == "yes") %>%
   group_by(recap_y_n, exp_phase) %>%
   summarise(num_slides = n())
 
@@ -233,6 +241,7 @@ recap_summary
 recap_summary_greh_visa <- data_for_experiment %>%
   filter(bird_group == "greh_visa") %>%
   distinct(recap_y_n, bird_group, exp_phase, slide_id) %>%
+  filter(recap_y_n == "yes") %>%
   group_by(recap_y_n, bird_group, exp_phase) %>%
   summarise(num_slides = n()) %>%
   ungroup()
@@ -251,12 +260,27 @@ replicates_pre_and_post <- data_for_experiment %>%
   filter(capture_1 > 0 & capture_2 > 0) %>%
   mutate(year_patch = paste(year, patch, sep = "_"))
 
+#Are any replicates missing? YES (2017 p58)
+check01 <- data_for_experiment %>%
+  filter(!(year_patch %in% replicates_pre_and_post$year_patch)) %>%
+  distinct(year_patch)
+
+#Remove replicates that are missing paired pre and post data
 data_for_experiment <- data_for_experiment %>%
-  mutate(year_patch = paste(year, patch, sep = "_")) %>%
   filter(year_patch %in% replicates_pre_and_post$year_patch)
 
 #How many slides in this dataset?
 unique(data_for_experiment$slide_id) %>% length()
+
+#How many hummingbird individuals in this dataset? All species
+unique(data_for_experiment$bird_id) %>% length()
+
+#How many hummingbird individuals in this dataset? GREH/VISA
+data_for_experiment %>%
+  filter(bird_species == "GREH" | bird_species == "VISA") %>%
+  distinct(bird_id) %>%
+  pull(bird_id) %>%
+  length()
 ```
 
 ## Step 5: Filter data for 'normal' visitation
