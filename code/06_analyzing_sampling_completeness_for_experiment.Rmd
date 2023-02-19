@@ -87,10 +87,11 @@ chao1_plot <- data_for_plot %>%
     geom_boxplot(aes(fill = control_treatment), width = 0.15, position = position_nudge(x = c(-0.15, 0.15)), alpha = 0.5, outlier.shape = NA) +
     geom_point(aes(fill = control_treatment), colour = "black", shape = 21, position = position_dodge(width = 0.45), alpha = 1, size = 2) +
     stat_summary(fun = mean, position = position_nudge(x = c(-0.15, 0.15)), geom = "point", shape = 18, size = 3) +
-    geom_line(aes(group = year_patch, linetype = outlier_indicator), alpha = 0.6) +
-    theme_bw(base_size = 20)+
+    geom_line(aes(group = year_patch, linetype = outlier_indicator), alpha = 0.6, size = 0.5) +
+    theme_bw(base_size = 20) +
     scale_fill_manual(values = colors) +
     scale_color_manual(values = colors) +
+    scale_linetype_discrete(c("solid", "dashed")) +
     theme(legend.position = "none",
           legend.direction = "horizontal",
           panel.grid.major = element_blank(),

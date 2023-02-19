@@ -47,7 +47,7 @@ make_interaction_plot <- function(ggeffects_df, yvar, ymax, sampling_method, add
     
     plot <- plot +
       theme(plot.margin = unit(c(3, 1, 0.5, 0.5), "lines")) + #Default plot margins in theme_bw are 1, 1, 0.5, 0.5 (top, right, bottom, left)
-      annotation_custom(rasterGrob(pollen_icon, width = 0.25), xmin = 1, xmax = 2, ymin = ymax * 1.25, ymax = Inf)
+      annotation_custom(rasterGrob(pollen_icon, width = 0.5), xmin = 1, xmax = 2, ymin = ymax * 1.25, ymax = Inf)
     
   }
   
@@ -55,7 +55,7 @@ make_interaction_plot <- function(ggeffects_df, yvar, ymax, sampling_method, add
     
     plot <- plot +
       theme(plot.margin = unit(c(3, 1, 0.5, 0.5), "lines")) + #Default plot margins in theme_bw are 1, 1, 0.5, 0.5 (top, right, bottom, left)
-      annotation_custom(rasterGrob(camera_icon, width = 0.25), xmin = 1, xmax = 2, ymin = ymax * 1.25, ymax = Inf)
+      annotation_custom(rasterGrob(camera_icon, width = 0.5), xmin = 1, xmax = 2, ymin = ymax * 1.25, ymax = Inf)
     
   }
   
