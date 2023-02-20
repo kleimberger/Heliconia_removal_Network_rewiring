@@ -545,7 +545,7 @@ write.csv(data_for_sampling_method, "../data/export/intermediate/Pollen_data_fil
 #Summarized data for analysis
 
 #Summarized morphotype richness
-write.csv(morphotypes_per_slide, "../data/export/for_analysis/Pollen_data_summarized_for_pp_richness.csv", row.names = FALSE) 
+write.csv(morphotypes_per_slide, "../data/export/for_analysis/Individual_specialization_for_analysis.csv", row.names = FALSE) 
 
 #Interaction frequencies between plants + hummingbirds (per replicate)
 write.csv(frequencies_for_pp_networks, "../data/export/for_analysis/Pollen_data_summarized_for_pp_networks.csv", row.names = FALSE)

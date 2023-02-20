@@ -396,7 +396,7 @@ scripts (01-02)</p>
 #4. Convert interaction frequency to integer and round. This is for calculating d&#39;, which can only be calculated from integers
 #5. Reorder columns
 data_cameras &lt;- read.csv(&quot;../data/export/for_analysis/Camera_data_summarized_for_pp_networks.csv&quot;) %&gt;%
-  select(-c(X, subset, flowers, plant_species, bird_species)) %&gt;%
+  select(-c(subset, flowers, plant_species, bird_species)) %&gt;%
   rename(interaction_frequency = sightings_per_hour, plant_species = plant_scientific_name, bird_species = bird_scientific_name) %&gt;%
   mutate(plant_species = ifelse(plant_species == &quot;Drymonia sp.&quot;, &quot;Drymonia&quot;, plant_species)) %&gt;%
   mutate(plant_species = ifelse(plant_species == &quot;Renealmia sp.&quot;, &quot;Renealmia&quot;, plant_species)) %&gt;%
@@ -409,7 +409,7 @@ data_cameras &lt;- read.csv(&quot;../data/export/for_analysis/Camera_data_summar
 #2. Standardize column names between the two datasets
 #3. Standardize names of experimental periods (capture_1/capture_2 -&gt; pre/post)
 data_pollen &lt;- read.csv(&quot;../data/export/for_analysis/Pollen_data_summarized_for_pp_networks.csv&quot;) %&gt;%
-  select(-c(X, bird_species)) %&gt;%
+  select(-c(bird_species)) %&gt;%
   rename(interaction_frequency = num_slides, plant_species = pollen_morphotype, bird_species = bird_scientific_name) %&gt;%
   filter(exp_phase == &quot;capture_1&quot; | exp_phase == &quot;capture_2&quot;) %&gt;%
   mutate(exp_phase = ifelse(exp_phase == &quot;capture_1&quot;, &quot;pre&quot;, &quot;post&quot;)) %&gt;%
@@ -424,13 +424,13 @@ head(data_cameras)</code></pre>
 ## 4 2016    10         treatment       pre Amazilia decora Centropogon granulosus
 ## 5 2016    10         treatment      post Amazilia decora        Costus barbatus
 ## 6 2016    10         treatment       pre Amazilia decora        Costus barbatus
-##   interaction_frequency sightings    hours sampling_method
-## 1                     0         0 23.56667      visitation
-## 2                     0         0 35.88333      visitation
-## 3                     0         0 70.33333      visitation
-## 4                     0         0 66.60000      visitation
-## 5                     0         0 65.21667      visitation
-## 6                     0         0 59.51667      visitation</code></pre>
+##   interaction_frequency sightings    hours     bird_common_name sampling_method
+## 1                     0         0 23.56667 Charming hummingbird      visitation
+## 2                     0         0 35.88333 Charming hummingbird      visitation
+## 3                     0         0 70.33333 Charming hummingbird      visitation
+## 4                     0         0 66.60000 Charming hummingbird      visitation
+## 5                     0         0 65.21667 Charming hummingbird      visitation
+## 6                     0         0 59.51667 Charming hummingbird      visitation</code></pre>
 <pre class="r"><code>head(data_pollen)</code></pre>
 <pre><code>##   year patch control_treatment exp_phase    bird_species plant_species
 ## 1 2016    10         treatment       pre Phaethornis guy   ERYTHRINA01
@@ -655,22 +655,10 @@ turnover_results_fruend &lt;- turnover_results %&gt;%
   select(binary, sampling_method, year, patch, control_treatment, betalink_fruend) %&gt;%
   unnest(betalink_fruend) %&gt;%
   rename(value = &quot;.&quot;) %&gt;%
-  pivot_wider(names_from = &quot;component&quot;, values_from = &quot;value&quot;)
-
-#Poisot method
-turnover_results_poisot &lt;- turnover_results %&gt;%
-  mutate(betalink_poisot = map(betalink_poisot, ~as.data.frame(.))) %&gt;%
-  mutate(betalink_poisot = map(betalink_poisot, ~tibble::rownames_to_column(., var = &quot;component&quot;))) %&gt;%
-  select(binary, sampling_method, year, patch, control_treatment, betalink_poisot) %&gt;%
-  unnest(betalink_poisot) %&gt;%
-  rename(value = &quot;.&quot;) %&gt;%
   pivot_wider(names_from = &quot;component&quot;, values_from = &quot;value&quot;) %&gt;%
-  select(-WN, -ST, -S) %&gt;% #Ignore these columns
-  rename(OS.poisot = OS)
-  
-#Combine results from different methods
-turnover_results_for_analysis &lt;- turnover_results_fruend %&gt;%
-  left_join(turnover_results_poisot)</code></pre>
+  select(-S)
+
+turnover_results_for_analysis &lt;- turnover_results_fruend</code></pre>
 </div>
 <div id="step-5-calculate-network-level-sampling-completeness" class="section level2">
 <h2>Step 5: Calculate network-level sampling completeness</h2>
@@ -709,9 +697,9 @@ completeness_results_for_analysis &lt;- completeness_results %&gt;%
 </div>
 <div id="step-6-export-results" class="section level2">
 <h2>Step 6: Export results</h2>
-<pre class="r"><code>write.csv(specialization_results_for_analysis, &quot;../data/export/for_analysis/Network_specialization_for_analysis.csv&quot;)
-write.csv(turnover_results_for_analysis, &quot;../data/export/for_analysis/Network_dissimilarity_for_analysis.csv&quot;)
-write.csv(completeness_results_for_analysis, &quot;../data/export/for_analysis/Sampling_completeness_for_analysis.csv&quot;)
+<pre class="r"><code>write.csv(specialization_results_for_analysis, &quot;../data/export/for_analysis/Network_specialization_for_analysis.csv&quot;, row.names = FALSE)
+write.csv(turnover_results_for_analysis, &quot;../data/export/for_analysis/Network_dissimilarity_for_analysis.csv&quot;, row.names = FALSE)
+write.csv(completeness_results_for_analysis, &quot;../data/export/for_analysis/Sampling_completeness_for_analysis.csv&quot;, row.names = FALSE)
 
 path_name &lt;- c(&quot;../results/network_visualizations/pre_post_networks_experiment&quot;)
 walk2(network_results$plotname, network_results$network_plot, ~ggplot2::ggsave(filename = .x, path = path_name, plot = .y, height = 12, width = 10, bg = &quot;white&quot;, device = &quot;png&quot;))</code></pre>

@@ -43,7 +43,7 @@ Data have already been summarized to level of pre/post in previous scripts (01-0
 #4. Convert interaction frequency to integer and round. This is for calculating d', which can only be calculated from integers
 #5. Reorder columns
 data_cameras <- read.csv("../data/export/for_analysis/Camera_data_summarized_for_pp_networks.csv") %>%
-  select(-c(X, subset, flowers, plant_species, bird_species)) %>%
+  select(-c(subset, flowers, plant_species, bird_species)) %>%
   rename(interaction_frequency = sightings_per_hour, plant_species = plant_scientific_name, bird_species = bird_scientific_name) %>%
   mutate(plant_species = ifelse(plant_species == "Drymonia sp.", "Drymonia", plant_species)) %>%
   mutate(plant_species = ifelse(plant_species == "Renealmia sp.", "Renealmia", plant_species)) %>%
@@ -56,7 +56,7 @@ data_cameras <- read.csv("../data/export/for_analysis/Camera_data_summarized_for
 #2. Standardize column names between the two datasets
 #3. Standardize names of experimental periods (capture_1/capture_2 -> pre/post)
 data_pollen <- read.csv("../data/export/for_analysis/Pollen_data_summarized_for_pp_networks.csv") %>%
-  select(-c(X, bird_species)) %>%
+  select(-c(bird_species)) %>%
   rename(interaction_frequency = num_slides, plant_species = pollen_morphotype, bird_species = bird_scientific_name) %>%
   filter(exp_phase == "capture_1" | exp_phase == "capture_2") %>%
   mutate(exp_phase = ifelse(exp_phase == "capture_1", "pre", "post")) %>%
@@ -290,6 +290,7 @@ turnover_results <- base_table_turnover %>%
 ```
 
 **Extract results**
+
 ```{r step4c, message = FALSE}
 #Fruend method, partitioned into different components
 turnover_results_fruend <- turnover_results %>%
@@ -298,8 +299,14 @@ turnover_results_fruend <- turnover_results %>%
   select(binary, sampling_method, year, patch, control_treatment, betalink_fruend) %>%
   unnest(betalink_fruend) %>%
   rename(value = ".") %>%
-  pivot_wider(names_from = "component", values_from = "value")
+  pivot_wider(names_from = "component", values_from = "value") %>%
+  select(-S)
 
+turnover_results_for_analysis <- turnover_results_fruend
+```
+
+```{r eval = FALSE, include = FALSE}
+#Did not end up using this method because we were interested in additive partitions
 #Poisot method
 turnover_results_poisot <- turnover_results %>%
   mutate(betalink_poisot = map(betalink_poisot, ~as.data.frame(.))) %>%

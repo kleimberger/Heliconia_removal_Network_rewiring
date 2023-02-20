@@ -14,9 +14,9 @@ Assess whether hummingbirds rewired to use alternative resources after Heliconia
 
 If hummingbirds rewired, then ecological specialization should decrease at multiple levels (i.e., network, species, and individual). This would be indicated by:
 
+- an *INCREASE* in the number of pollen morphotypes per hummingbird
 - an increase in niche breadth (i.e., a *DECREASE* in the Species Specificity Index)
 - a corresponding increase in niche overlap (i.e., a *DECREASE* in reciprocal specialization measured by H2 and d')
-- an *INCREASE* in the number of pollen morphotypes per hummingbird
 
 Additionally, we should see rearrangements in the underlying network structure (pairwise interactions). This would by indicated by:
 
@@ -28,7 +28,14 @@ ECOLOGICAL SPECIALIZATION
 
 For all response variables, will text for treatment effect using a statistical interaction between control/treatment and experimental period (pre/post).
 
-1. Network metrics (H2', d', SSI)
+1. Number of pollen morphotypes
+
+- Values range from 1-8, since birds with no pollen have already been removed
+- Will analyze using GLMMs (truncated Poisson or similar count distribution; will choose most appropriate distribution based on AICc)
+- I'll analyze for each hummingbird group: all species and *Heliconia* specialists (green hermits & violet sabrewings) separately
+- I'll also analyze recaps separately from all of the individual birds captured. Here, "recap" = bird caught during the pre AND the post period
+
+2. Network metrics (H2', d', SSI)
 
 - Values range from 0-1
 - Will analyze using GLMMs (beta regression)
@@ -36,20 +43,13 @@ For all response variables, will text for treatment effect using a statistical i
 - Species-level specialization = mean d', mean SSI
   * I'll analyze for each hummingbird group: all species and *Heliconia* specialists (green hermits & violet sabrewings) separately
 
-2. Number of pollen morphotypes
-
-- Values range from 1-8, since birds with no pollen have already been removed
-- Will analyze using GLMMs (truncated Poisson or similar count distribution; will choose most appropriate distribution based on AICc)
-- I'll analyze for each hummingbird group: all species and *Heliconia* specialists (green hermits & violet sabrewings) separately
-- I'll also analyze recaps separately from all of the individual birds captured. Here, "recap" = bird caught during the pre AND the post period
-
 INTERACTION TURNOVER
 
 Using the 'betalinkr' function of the 'bipartite' R package, examine overall network dissimilarity and its two additive subcomponents: changes in interactions due to species gain/loss and changes in interactions among species present during both experimental periods (pre and post).
 
 That is, 
 
-    INTERACTION TURNOVER (total) = SPECIES TURNOVER + INTERACTION RESHUFFLING 
+    TOTAL TURNOVER = SPECIES TURNOVER + AMONG-SPECIES TURNOVER
 
 Or, using the abbreviations of the package creators, 
 
@@ -109,14 +109,14 @@ specialization_network_data <- read.csv("../data/export/for_analysis/Network_spe
   filter(is.na(unpaired)) %>%
   filter(!(sampling_method == "pollen" & year_patch == "2016_60")) %>%
   filter(!(sampling_method == "pollen" & year_patch == "2018_60")) %>%
-  select(sampling_method, bird_group, year, year_patch, everything(), -X, -unpaired) %>%
+  select(sampling_method, bird_group, year, year_patch, everything(), -unpaired) %>%
   mutate(analysis = "specialization_network")
 ```
 
 **Get data for individual specialization** (i.e., # pollen morphotypes/hummingbird, pollen only)
 ```{r step1c, message = FALSE}
 #1. Get data
-specialization_individual_data <- read.csv("../data/export/for_analysis/Pollen_data_summarized_for_pp_richness.csv") %>%
+specialization_individual_data <- read.csv("../data/export/for_analysis/Individual_specialization_for_analysis.csv") %>%
   mutate(year_patch = paste(year, patch, sep = "_"))
 
 #2. Remove replicates that don't have a complete pre-post pair
@@ -149,7 +149,7 @@ specialization_individual_data <- specialization_individual_data %>%
 #3. Remove outliers for sampling completeness identified in previous script; sampling completeness varies pre-to-post for these replicates
 #4. Convert to long-form, rather than having one column per metric
 turnover_data <- read.csv("../data/export/for_analysis/Network_dissimilarity_for_analysis.csv") %>%
-  select(-X, -S, -OS.poisot) %>%
+  select(-S, -OS.poisot) %>%
   mutate(year_patch = paste(year, patch, sep = "_")) %>%
   filter(sampling_method == "visitation") %>%
   filter(year_patch != "2017_130") %>%
