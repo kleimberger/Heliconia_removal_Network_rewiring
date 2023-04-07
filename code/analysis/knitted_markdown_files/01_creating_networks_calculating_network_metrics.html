@@ -389,7 +389,7 @@ scripts (01-02)</p>
 #4. Convert interaction frequency to integer and round. This is for calculating d&#39;, which can only be calculated from integers
 #5. Reorder columns
 data_cameras &lt;- read.csv(&quot;../../data/export/for_analysis/Camera_data_summarized_for_pp_networks.csv&quot;) %&gt;%
-  select(-c(subset, flowers, plant_species, bird_species)) %&gt;%
+  select(-c(plant_species, bird_species)) %&gt;%
   rename(interaction_frequency = sightings_per_hour, plant_species = plant_scientific_name, bird_species = bird_scientific_name) %&gt;%
   mutate(plant_species = ifelse(plant_species == &quot;Drymonia sp.&quot;, &quot;Drymonia&quot;, plant_species)) %&gt;%
   mutate(plant_species = ifelse(plant_species == &quot;Renealmia sp.&quot;, &quot;Renealmia&quot;, plant_species)) %&gt;%
@@ -418,12 +418,12 @@ head(data_cameras)</code></pre>
 ## 5 2016    10         treatment      post Amazilia decora        Costus barbatus
 ## 6 2016    10         treatment       pre Amazilia decora        Costus barbatus
 ##   interaction_frequency sightings    hours     bird_common_name sampling_method
-## 1                     0         0 23.56667 Charming hummingbird      visitation
-## 2                     0         0 35.88333 Charming hummingbird      visitation
-## 3                     0         0 70.33333 Charming hummingbird      visitation
-## 4                     0         0 66.60000 Charming hummingbird      visitation
-## 5                     0         0 65.21667 Charming hummingbird      visitation
-## 6                     0         0 59.51667 Charming hummingbird      visitation</code></pre>
+## 1                     0         0 23.56667 Charming Hummingbird      visitation
+## 2                     0         0 35.88333 Charming Hummingbird      visitation
+## 3                     0         0 70.33333 Charming Hummingbird      visitation
+## 4                     0         0 66.60000 Charming Hummingbird      visitation
+## 5                     0         0 65.21667 Charming Hummingbird      visitation
+## 6                     0         0 59.51667 Charming Hummingbird      visitation</code></pre>
 <pre class="r"><code>head(data_pollen)</code></pre>
 <pre><code>##   year patch control_treatment exp_phase    bird_species plant_species
 ## 1 2016    10         treatment       pre Phaethornis guy   ERYTHRINA01
@@ -686,7 +686,7 @@ completeness_results_for_analysis &lt;- completeness_results %&gt;%
   unnest(completeness) %&gt;%
   rename(value = &quot;V1&quot;) %&gt;%
   pivot_wider(names_from = &quot;component&quot;, values_from = &quot;value&quot;) %&gt;%
-  select(-se.chao1, -contains(&quot;ACE&quot;)) %&gt;% #Will just use Chao 1, since ACE has missing values
+  select(-year_patch, -se.chao1, -contains(&quot;ACE&quot;)) %&gt;% #Will just use Chao 1, since ACE has missing values
   mutate(completeness.chao1 = S.obs/S.chao1)</code></pre>
 </div>
 <div id="step-6-export-results" class="section level2">

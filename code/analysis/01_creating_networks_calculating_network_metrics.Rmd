@@ -45,7 +45,7 @@ Data have already been summarized to level of pre/post in previous scripts (01-0
 #4. Convert interaction frequency to integer and round. This is for calculating d', which can only be calculated from integers
 #5. Reorder columns
 data_cameras <- read.csv("../../data/export/for_analysis/Camera_data_summarized_for_pp_networks.csv") %>%
-  select(-c(subset, flowers, plant_species, bird_species)) %>%
+  select(-c(plant_species, bird_species)) %>%
   rename(interaction_frequency = sightings_per_hour, plant_species = plant_scientific_name, bird_species = bird_scientific_name) %>%
   mutate(plant_species = ifelse(plant_species == "Drymonia sp.", "Drymonia", plant_species)) %>%
   mutate(plant_species = ifelse(plant_species == "Renealmia sp.", "Renealmia", plant_species)) %>%
@@ -356,7 +356,7 @@ completeness_results_for_analysis <- completeness_results %>%
   unnest(completeness) %>%
   rename(value = "V1") %>%
   pivot_wider(names_from = "component", values_from = "value") %>%
-  select(-se.chao1, -contains("ACE")) %>% #Will just use Chao 1, since ACE has missing values
+  select(-year_patch, -se.chao1, -contains("ACE")) %>% #Will just use Chao 1, since ACE has missing values
   mutate(completeness.chao1 = S.obs/S.chao1)
 ```
 

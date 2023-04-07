@@ -46,7 +46,7 @@ Pollen slides were then reviewed and any pollen morphotypes were identified; thi
 ```{r step1}
 #1. Rename 'site' in anticipation of matching column name in camera data (patch = site)
 pollen <- read.csv("../../data/import/data/pollen_on_birds/Pollen_slide_data_2012-2018.csv") %>%
-  rename(patch = site)
+  rename(patch = site, bird_day_id = day_bird_id)
 ```
 
 ## Step 2: Process data
@@ -68,13 +68,13 @@ pollen02 <- pollen %>%
 ```{r step2b, message = FALSE}
 #Identify slides with multiple rows for the same pollen morphotype. This doesn't happen frequently, but rows need to be combined when it does.
 check01 <- pollen02 %>%
-  group_by(year, bird_id, day_bird_id, patch, control_treatment, exp_phase, date, slide_number, slide_id, band_number, colors, pollen_yes_or_no, bird_species, bird_scientific_name, bird_sex, pollen_morphotype) %>%
+  group_by(year, bird_id, bird_day_id, patch, control_treatment, exp_phase, date, slide_number, slide_id, band_number, colors, pollen_yes_or_no, bird_species, bird_scientific_name, bird_sex, pollen_morphotype) %>%
   summarise(n = n()) %>%
   filter(n > 1)
 
 #Summarize pollen data so that there are not duplicate pollen morphotypes on a single slide (pollen sample)
 pollen03 <- pollen02 %>%
-  select(year, patch, bird_id, day_bird_id, control_treatment, exp_phase, date, slide_number, slide_id, band_number, colors, pollen_yes_or_no, bird_species, bird_scientific_name, bird_sex, contains("name"), pollen_morphotype, record_in_capture_data, collection_time, pollen_count) %>%
+  select(year, patch, bird_id, bird_day_id, control_treatment, exp_phase, date, slide_number, slide_id, band_number, colors, pollen_yes_or_no, bird_species, bird_scientific_name, bird_sex, contains("name"), pollen_morphotype, record_in_capture_data, collection_time, pollen_count) %>%
   group_by(across(!pollen_count)) %>%
   summarise(pollen_count = sum(as.numeric(pollen_count), na.rm = TRUE)) %>%
   ungroup()
@@ -111,8 +111,8 @@ I want to only sample each bird once per capture session. Birds with >1 capture 
 #3. Filter to birds with >1 pollen sample (slide) per capture session. These are the day recaptures.
 day_recaps <- pollen04 %>%
   filter(!is.na(band_number) | (is.na(band_number) & !is.na(colors))) %>% 
-  distinct(year, patch, control_treatment, day_bird_id, bird_id, slide_id) %>%
-  group_by(year, patch, control_treatment, day_bird_id, bird_id) %>%
+  distinct(year, patch, control_treatment, bird_day_id, bird_id, slide_id) %>%
+  group_by(year, patch, control_treatment, bird_day_id, bird_id) %>%
   summarise(num_slides = n()) %>%
   ungroup() %>%
   filter(num_slides > 1)
@@ -128,12 +128,12 @@ There are 14 birds with >1 sample per capture session. How to resolve?
 capture_times_2018 <- pollen04 %>%
   filter(year == "2018" & !is.na(collection_time)) %>%
   mutate(collection_time = lubridate::hm(collection_time)) %>%
-  distinct(year, patch, day_bird_id, bird_id, collection_time, slide_number) %>%
-  group_by(year, patch, day_bird_id) %>%
+  distinct(year, patch, bird_day_id, bird_id, collection_time, slide_number) %>%
+  group_by(year, patch, bird_day_id) %>%
   arrange(collection_time) %>%
   mutate(order = row_number()) %>% 
   ungroup() %>%
-  arrange(year, patch, day_bird_id, order)
+  arrange(year, patch, bird_day_id, order)
 
 #Identify slides that will be removed
 slides_to_remove_2018 <- capture_times_2018 %>%
@@ -144,12 +144,12 @@ slides_to_remove_2018 <- capture_times_2018 %>%
 #Need to start with pollen data to get list of slides associated with day recaps
 set.seed(1)
 day_recaps_slides_2016_2017 <- pollen04 %>%
-  filter(day_bird_id %in% day_recaps$day_bird_id) %>% 
+  filter(bird_day_id %in% day_recaps$bird_day_id) %>% 
   filter(year == "2016" | year == "2017") %>%
-  distinct(year, patch, control_treatment, date, band_number, day_bird_id, bird_id, slide_id) 
+  distinct(year, patch, control_treatment, date, band_number, bird_day_id, bird_id, slide_id) 
 
 slides_to_keep_2016_2017 <- day_recaps_slides_2016_2017 %>%
-  group_by(year, patch, control_treatment, date, band_number, day_bird_id, bird_id) %>%
+  group_by(year, patch, control_treatment, date, band_number, bird_day_id, bird_id) %>%
   sample_n(1)
 
 #Need this step because one bird was captured three times in same day (can't just keep one each -- need to frame in terms of slides to remove)
@@ -163,8 +163,8 @@ pollen05 <- pollen04 %>%
 
 #Check for day recaptures again
 check02 <- pollen05 %>%
-  distinct(year, patch, control_treatment, date, day_bird_id, bird_id, slide_id) %>%
-  group_by(year, patch, control_treatment, date, day_bird_id, bird_id) %>%
+  distinct(year, patch, control_treatment, date, bird_day_id, bird_id, slide_id) %>%
+  group_by(year, patch, control_treatment, date, bird_day_id, bird_id) %>%
   summarise(num_slides = n()) %>%
   ungroup() %>%
   filter(num_slides > 1)
@@ -358,8 +358,8 @@ Number of pollen morphotypes per individual bird (richness of flower types per s
 ```{r step7b, message = FALSE}
 #Remember, slide = microscope slide = pollen sample. Have already removed birds with no pollen, so number of morphotypes will always be >0
 morphotypes_per_slide <- data_for_experiment %>%
-  select(year, patch, control_treatment, exp_phase, date, slide_number, slide_id, bird_id, day_bird_id, band_number, bird_species, bird_scientific_name, bird_sex, recap_y_n, pollen_yes_or_no, pollen_morphotype) %>%
-  group_by(year, patch, control_treatment, exp_phase, date, slide_number, slide_id, bird_id, day_bird_id, band_number, bird_species, bird_scientific_name, bird_sex, recap_y_n, pollen_yes_or_no) %>%
+  select(year, patch, control_treatment, exp_phase, slide_id, bird_id, bird_day_id, bird_species, bird_scientific_name, recap_y_n, pollen_morphotype) %>%
+  group_by(year, patch, control_treatment, exp_phase, slide_id, bird_id, bird_day_id, bird_species, bird_scientific_name, recap_y_n) %>%
   summarise(num_morphotypes = n()) %>%
   ungroup() %>%
   arrange(num_morphotypes)
@@ -376,11 +376,11 @@ ggplot(aes(x = num_morphotypes), data = morphotypes_per_slide) +
 
 ## Step 8: Summarize data for general results about hummingbird natural history
 
-Decided to just look at 'normal' data, but results are basically the same if decide to include all slides
+Decided to just look at 'normal' data (i.e., data unaffected by experiment), but results are basically the same if decide to include all slides
 ```{r step8a}
 morphotypes_per_slide_normal <- data_for_normal_visitation %>%
-  select(year, patch, control_treatment, exp_phase, date, slide_number, slide_id, bird_id, day_bird_id, band_number, bird_species, bird_scientific_name, bird_sex, pollen_yes_or_no, pollen_morphotype) %>%
-  group_by(year, patch, control_treatment, exp_phase, date, slide_number, slide_id, bird_id, day_bird_id, band_number, bird_species, bird_scientific_name, bird_sex, pollen_yes_or_no) %>%
+ select(year, patch, control_treatment, exp_phase, date, slide_id, bird_id, bird_day_id, bird_species, bird_scientific_name, pollen_morphotype) %>%
+  group_by(year, patch, control_treatment, exp_phase, date, slide_id, bird_id, bird_day_id, bird_species, bird_scientific_name) %>%
   summarise(num_morphotypes = n()) %>%
   ungroup() %>%
   arrange(num_morphotypes)

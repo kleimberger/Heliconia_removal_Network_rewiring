@@ -409,7 +409,7 @@ row per microscope slide. If &gt;1 pollen types were observed on a
 slide, then there are additional rows per slide.</p>
 <pre class="r"><code>#1. Rename &#39;site&#39; in anticipation of matching column name in camera data (patch = site)
 pollen &lt;- read.csv(&quot;../../data/import/data/pollen_on_birds/Pollen_slide_data_2012-2018.csv&quot;) %&gt;%
-  rename(patch = site)</code></pre>
+  rename(patch = site, bird_day_id = day_bird_id)</code></pre>
 </div>
 <div id="step-2-process-data" class="section level2">
 <h2>Step 2: Process data</h2>
@@ -427,13 +427,13 @@ pollen02 &lt;- pollen %&gt;%
 ID</strong></p>
 <pre class="r"><code>#Identify slides with multiple rows for the same pollen morphotype. This doesn&#39;t happen frequently, but rows need to be combined when it does.
 check01 &lt;- pollen02 %&gt;%
-  group_by(year, bird_id, day_bird_id, patch, control_treatment, exp_phase, date, slide_number, slide_id, band_number, colors, pollen_yes_or_no, bird_species, bird_scientific_name, bird_sex, pollen_morphotype) %&gt;%
+  group_by(year, bird_id, bird_day_id, patch, control_treatment, exp_phase, date, slide_number, slide_id, band_number, colors, pollen_yes_or_no, bird_species, bird_scientific_name, bird_sex, pollen_morphotype) %&gt;%
   summarise(n = n()) %&gt;%
   filter(n &gt; 1)
 
 #Summarize pollen data so that there are not duplicate pollen morphotypes on a single slide (pollen sample)
 pollen03 &lt;- pollen02 %&gt;%
-  select(year, patch, bird_id, day_bird_id, control_treatment, exp_phase, date, slide_number, slide_id, band_number, colors, pollen_yes_or_no, bird_species, bird_scientific_name, bird_sex, contains(&quot;name&quot;), pollen_morphotype, record_in_capture_data, collection_time, pollen_count) %&gt;%
+  select(year, patch, bird_id, bird_day_id, control_treatment, exp_phase, date, slide_number, slide_id, band_number, colors, pollen_yes_or_no, bird_species, bird_scientific_name, bird_sex, contains(&quot;name&quot;), pollen_morphotype, record_in_capture_data, collection_time, pollen_count) %&gt;%
   group_by(across(!pollen_count)) %&gt;%
   summarise(pollen_count = sum(as.numeric(pollen_count), na.rm = TRUE)) %&gt;%
   ungroup()</code></pre>
@@ -476,8 +476,8 @@ session</strong></p>
 #3. Filter to birds with &gt;1 pollen sample (slide) per capture session. These are the day recaptures.
 day_recaps &lt;- pollen04 %&gt;%
   filter(!is.na(band_number) | (is.na(band_number) &amp; !is.na(colors))) %&gt;% 
-  distinct(year, patch, control_treatment, day_bird_id, bird_id, slide_id) %&gt;%
-  group_by(year, patch, control_treatment, day_bird_id, bird_id) %&gt;%
+  distinct(year, patch, control_treatment, bird_day_id, bird_id, slide_id) %&gt;%
+  group_by(year, patch, control_treatment, bird_day_id, bird_id) %&gt;%
   summarise(num_slides = n()) %&gt;%
   ungroup() %&gt;%
   filter(num_slides &gt; 1)</code></pre>
@@ -493,12 +493,12 @@ resolve?</p>
 capture_times_2018 &lt;- pollen04 %&gt;%
   filter(year == &quot;2018&quot; &amp; !is.na(collection_time)) %&gt;%
   mutate(collection_time = lubridate::hm(collection_time)) %&gt;%
-  distinct(year, patch, day_bird_id, bird_id, collection_time, slide_number) %&gt;%
-  group_by(year, patch, day_bird_id) %&gt;%
+  distinct(year, patch, bird_day_id, bird_id, collection_time, slide_number) %&gt;%
+  group_by(year, patch, bird_day_id) %&gt;%
   arrange(collection_time) %&gt;%
   mutate(order = row_number()) %&gt;% 
   ungroup() %&gt;%
-  arrange(year, patch, day_bird_id, order)
+  arrange(year, patch, bird_day_id, order)
 
 #Identify slides that will be removed
 slides_to_remove_2018 &lt;- capture_times_2018 %&gt;%
@@ -509,12 +509,12 @@ slides_to_remove_2018 &lt;- capture_times_2018 %&gt;%
 #Need to start with pollen data to get list of slides associated with day recaps
 set.seed(1)
 day_recaps_slides_2016_2017 &lt;- pollen04 %&gt;%
-  filter(day_bird_id %in% day_recaps$day_bird_id) %&gt;% 
+  filter(bird_day_id %in% day_recaps$bird_day_id) %&gt;% 
   filter(year == &quot;2016&quot; | year == &quot;2017&quot;) %&gt;%
-  distinct(year, patch, control_treatment, date, band_number, day_bird_id, bird_id, slide_id) 
+  distinct(year, patch, control_treatment, date, band_number, bird_day_id, bird_id, slide_id) 
 
 slides_to_keep_2016_2017 &lt;- day_recaps_slides_2016_2017 %&gt;%
-  group_by(year, patch, control_treatment, date, band_number, day_bird_id, bird_id) %&gt;%
+  group_by(year, patch, control_treatment, date, band_number, bird_day_id, bird_id) %&gt;%
   sample_n(1)
 
 #Need this step because one bird was captured three times in same day (can&#39;t just keep one each -- need to frame in terms of slides to remove)
@@ -528,8 +528,8 @@ pollen05 &lt;- pollen04 %&gt;%
 
 #Check for day recaptures again
 check02 &lt;- pollen05 %&gt;%
-  distinct(year, patch, control_treatment, date, day_bird_id, bird_id, slide_id) %&gt;%
-  group_by(year, patch, control_treatment, date, day_bird_id, bird_id) %&gt;%
+  distinct(year, patch, control_treatment, date, bird_day_id, bird_id, slide_id) %&gt;%
+  group_by(year, patch, control_treatment, date, bird_day_id, bird_id) %&gt;%
   summarise(num_slides = n()) %&gt;%
   ungroup() %&gt;%
   filter(num_slides &gt; 1)</code></pre>
@@ -714,8 +714,8 @@ frequencies_for_metanetwork &lt;- data_for_normal_visitation %&gt;%
 types per sample)</p>
 <pre class="r"><code>#Remember, slide = microscope slide = pollen sample. Have already removed birds with no pollen, so number of morphotypes will always be &gt;0
 morphotypes_per_slide &lt;- data_for_experiment %&gt;%
-  select(year, patch, control_treatment, exp_phase, date, slide_number, slide_id, bird_id, day_bird_id, band_number, bird_species, bird_scientific_name, bird_sex, recap_y_n, pollen_yes_or_no, pollen_morphotype) %&gt;%
-  group_by(year, patch, control_treatment, exp_phase, date, slide_number, slide_id, bird_id, day_bird_id, band_number, bird_species, bird_scientific_name, bird_sex, recap_y_n, pollen_yes_or_no) %&gt;%
+  select(year, patch, control_treatment, exp_phase, slide_id, bird_id, bird_day_id, bird_species, bird_scientific_name, recap_y_n, pollen_morphotype) %&gt;%
+  group_by(year, patch, control_treatment, exp_phase, slide_id, bird_id, bird_day_id, bird_species, bird_scientific_name, recap_y_n) %&gt;%
   summarise(num_morphotypes = n()) %&gt;%
   ungroup() %&gt;%
   arrange(num_morphotypes)
@@ -734,18 +734,18 @@ ggplot(aes(x = num_morphotypes), data = morphotypes_per_slide) +
 <div id="step-8-summarize-data-for-general-results-about-hummingbird-natural-history" class="section level2">
 <h2>Step 8: Summarize data for general results about hummingbird natural
 history</h2>
-<p>Decided to just look at ‘normal’ data, but results are basically the
-same if decide to include all slides</p>
+<p>Decided to just look at ‘normal’ data (i.e., data unaffected by
+experiment), but results are basically the same if decide to include all
+slides</p>
 <pre class="r"><code>morphotypes_per_slide_normal &lt;- data_for_normal_visitation %&gt;%
-  select(year, patch, control_treatment, exp_phase, date, slide_number, slide_id, bird_id, day_bird_id, band_number, bird_species, bird_scientific_name, bird_sex, pollen_yes_or_no, pollen_morphotype) %&gt;%
-  group_by(year, patch, control_treatment, exp_phase, date, slide_number, slide_id, bird_id, day_bird_id, band_number, bird_species, bird_scientific_name, bird_sex, pollen_yes_or_no) %&gt;%
+ select(year, patch, control_treatment, exp_phase, date, slide_id, bird_id, bird_day_id, bird_species, bird_scientific_name, pollen_morphotype) %&gt;%
+  group_by(year, patch, control_treatment, exp_phase, date, slide_id, bird_id, bird_day_id, bird_species, bird_scientific_name) %&gt;%
   summarise(num_morphotypes = n()) %&gt;%
   ungroup() %&gt;%
   arrange(num_morphotypes)</code></pre>
 <pre><code>## `summarise()` has grouped output by &#39;year&#39;, &#39;patch&#39;, &#39;control_treatment&#39;,
-## &#39;exp_phase&#39;, &#39;date&#39;, &#39;slide_number&#39;, &#39;slide_id&#39;, &#39;bird_id&#39;, &#39;day_bird_id&#39;,
-## &#39;band_number&#39;, &#39;bird_species&#39;, &#39;bird_scientific_name&#39;, &#39;bird_sex&#39;. You can
-## override using the `.groups` argument.</code></pre>
+## &#39;exp_phase&#39;, &#39;date&#39;, &#39;slide_id&#39;, &#39;bird_id&#39;, &#39;bird_day_id&#39;, &#39;bird_species&#39;. You
+## can override using the `.groups` argument.</code></pre>
 <p><strong>How many pollen morphotypes per bird?</strong></p>
 <pre class="r"><code>#Summary of number of morphotypes per bird
 num_morphotypes_per_bird_sum &lt;- morphotypes_per_slide_normal %&gt;%
