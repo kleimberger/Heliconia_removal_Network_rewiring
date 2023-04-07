@@ -35,6 +35,8 @@ Analyze networks sampled from the "pre" period of the Heliconia removal experime
 - DATA FORMAT: one row per replicate (1 column pollen, 1 column camera)
 
 ```{r setup, include = FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+
 #Packages for data wrangling
 library(dplyr)
 library(tidyr)
@@ -43,12 +45,12 @@ library(purrr)
 #Packages for plotting
 library(ggplot2)
 library(ggpubr)
+library(ggeffects)
 
 #Packages for statistical modeling
 library(glmmTMB)
 library(DHARMa)
 library(performance)
-library(ggeffects)
 library(emmeans)
 
 #Set seed
@@ -59,10 +61,10 @@ set.seed(1)
 
 ```{r step1, message = FALSE}
 #Data are currently in long format (created in script 04). Will stick with this format for the initial analysis
-data <- read.csv("../data/export/for_analysis/Network_specialization_for_analysis.csv") %>%
+data <- read.csv("data/export/for_analysis/Network_specialization_for_analysis.csv") %>%
   filter(exp_phase == "pre") %>%
   filter(bird_group == "all_spp") %>%
-  select(-unpaired, -X) %>%
+  select(-unpaired) %>%
   arrange(metric) %>%
   mutate(year_patch = paste(year, patch, sep = "_")) %>%
   select(year, patch, year_patch, everything())
@@ -76,9 +78,9 @@ data_long <- data %>%
   pivot_longer(cols = c("pollen", "visitation"), names_to = "sampling_method")
 
 #Functions
-source("../code/helper_functions/Calculate_basic_summary_stats.R")
-source("../code/helper_functions/Transform_proportion_for_betareg.R")
-source("../code/helper_functions/Modeling_helper_functions.R")
+source("code/helper_functions/Calculate_basic_summary_stats.R")
+source("code/helper_functions/Transform_proportion_for_betareg.R")
+source("code/helper_functions/Modeling_helper_functions.R")
 ```
 
 ## Step 2: Are camera networks more specialized than pollen networks?
@@ -182,6 +184,7 @@ ggeffects::ggpredict(model3) %>% plot(add.data = TRUE, jitter = c(0.15, 0))
 
 #Combine models into dataframe
 specialization_models <- tibble(model_number = c(1, 2, 3),
+                                analysis = "specialization_value",
                                 metric = c("H2", "d", "species.specificity.index"),
                                 model = list(model1, model2, model3))
 ```
@@ -244,6 +247,7 @@ ggeffects::ggpredict(model6_no_outlier) %>% plot(add.data = TRUE, jitter = 0)
 
 #Combine models into dataframe
 correlation_models <- tibble(model_number = c(4, 5, 6),
+                             analysis = "specialization_correlation",
                              metric = c("H2", "d", "species.specificity.index"),
                              model = list(model4, model5, model6_no_outlier))
 ```
@@ -287,12 +291,12 @@ results <- specialization_models %>%
 
 #Extract model summaries
 results_tidy <- results %>%
-  select(model_number, metric, summary_tidy) %>%
+  select(model_number, analysis, metric, summary_tidy) %>%
   unnest(c(summary_tidy))
 
 #Extract confidence intervals
 results_confint <- results %>%
-  select(model_number, metric, confint_wald) %>%
+  select(model_number, analysis, metric, confint_wald) %>%
   mutate(confint_df = map(confint_wald, as.data.frame)) %>% #CI as dataframe
   mutate(confint_df = map(confint_df, ~tibble::rownames_to_column(., var = "term"))) %>%
   unnest(cols = confint_df) %>%
@@ -310,11 +314,23 @@ results_tidy_confint <- results_tidy %>%
 
 **For Question 1 (specialization ~ sampling method), calculate contrasts with emmeans**
 
-When interpreting these results, I want to be able to say "visitation networks are, on average, X times more specialized than pollen networks".
+When interpreting these results, I want to be able to say "camera networks are, on average, X times more specialized than pollen networks".
 
-However, beta regression is rather weird to interpret because the default link function is logit. Typically, back-transforming from logit links produces an odds ratio - but this doesn't really make sense because I'm not working with probabilities. The solution to this problem is to calculate ["risk ratios", aka "proportion ratios"](https://github.com/rvlenth/emmeans/issues/48) on the data scale.
+This can be done using a contrast. However, beta regression is rather weird to interpret because the default link function is logit. Typically, back-transforming from logit links produces an odds ratio - but this doesn't really make sense because I'm not working with probabilities. The solution to this problem is to calculate ["risk ratios", aka "proportion ratios"](https://github.com/rvlenth/emmeans/issues/48) on the data scale.
+
+Additionally, I want to calculate the estimated marginal means for pollen vs. camera networks. I will plot these values.
 
 ```{r step4b}
+#Bias adjustment values (sigma) for emmeans. These values are needed for plotting the results
+bias_adjust_values <- results_tidy_confint %>%
+  filter(effect == "ran_pars") %>%
+  filter(analysis == "specialization_value") %>%
+  mutate(estimate2 = estimate^2) %>%
+  group_by(model_number, analysis, metric) %>%
+  summarise(sum_estimate2 = sum(estimate2)) %>%
+  ungroup() %>%
+  mutate(sigma = sqrt(sum_estimate2))
+
 #Function to calculate contrasts 
 calculate_contrasts <- function(model){
   
@@ -327,38 +343,41 @@ calculate_contrasts <- function(model){
   
 }
 
-#Calculate estimated marginal means (i.e., predictions) using ggeffects and contrasts using emmeans
+#Calculate estimated marginal means (i.e., predictions) and contrasts using emmeans
 specialization_emmeans_contrasts <- specialization_models %>%
-  mutate(ggeffects = map(model, ~ggemmeans(., terms = c("sampling_method"), back.transform = TRUE))) %>%
-  mutate(emm_contrasts = map(model, ~calculate_contrasts(.)))
+  left_join(bias_adjust_values) %>%
+  mutate(emmeans = pmap(list(model, sigma), ~emmeans(..1, specs = ~sampling_method, type = "response", bias.adjust = TRUE, sigma = ..2))) %>%
+  mutate(contrasts = map(model, ~calculate_contrasts(.))) %>%
+  mutate(emmeans = map(emmeans, as.data.frame))
 
 #Extract estimated marginal means
-specialization_emmeans <- specialization_emmeans_contrasts %>%
-  select(model_number, metric, ggeffects) %>% 
-  unnest(cols = c(ggeffects))
+specialization_emmeans_df <- specialization_emmeans_contrasts %>%
+  select(model_number, metric, emmeans) %>% 
+  unnest(cols = c(emmeans)) %>%
+  rename(estimate = response)
 
 #Extract contrasts
-specialization_contrasts <- specialization_emmeans_contrasts %>%
-  select(model_number, metric, emm_contrasts) %>% 
-  unnest(cols = c(emm_contrasts)) %>%
-  select(model_number, metric, ratio, lowerCI = lower.CL, upperCI = upper.CL, std_error = SE) %>%
+specialization_contrasts_df <- specialization_emmeans_contrasts %>%
+  select(model_number, metric, contrasts) %>% 
+  unnest(cols = c(contrasts)) %>%
+  select(model_number, metric, ratio, lowerCI = lower.CL, upperCI = upper.CL) %>%
   mutate_if(is.numeric, ~round(., digits = 2))
 ```
 
 **For Question 1 (specialization ~ sampling method), make plots for publication**
 ```{r step4c, fig.width=4, fig.height=11}
 #Function to make plot
-make_specialization_plot <- function(ggeffects, yvar){
+make_specialization_plot <- function(emmeans_data, yvar){
   
   if(yvar == "H2"){ylabel <- c(expression(paste(italic(H[2])*"′")))}
   if(yvar == "d"){ylabel <-  c(expression(paste("mean "*italic(d)*"′")))}
   if(yvar == "species.specificity.index"){ylabel <- c("mean SSI")}
   
-  plot <- ggeffects %>%
-            mutate(x = factor(x, levels = c("pollen", "visitation"), labels = c("Pollen", "Camera"))) %>%
-            ggplot(data = ., aes(x = x, y = predicted)) + 
-              geom_point(aes(x = x, y = predicted), position = position_dodge(width = 0.25), size = 4, shape = 16) +
-              geom_errorbar(aes(ymin = conf.low, ymax = conf.high), position = position_dodge(width = 0.25), width = 0.0, size = 1) +
+  plot <- emmeans_data %>%
+            mutate(sampling_method = factor(sampling_method, levels = c("pollen", "visitation"), labels = c("Pollen", "Camera"))) %>%
+            ggplot(data = ., aes(x = sampling_method, y = estimate)) + 
+              geom_point(aes(x = sampling_method, y = estimate), position = position_dodge(width = 0.25), size = 4, shape = 16) +
+              geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), position = position_dodge(width = 0.25), width = 0.0, size = 1) +
               theme_bw(base_size = 20) +
               theme(legend.position = "none",
                     legend.direction = "horizontal",
@@ -373,7 +392,10 @@ make_specialization_plot <- function(ggeffects, yvar){
 }
 
 specialization_results_plots <- specialization_emmeans_contrasts %>%
-  mutate(predicted_plot = map2(ggeffects, metric, ~make_specialization_plot(ggeffects = .x, yvar = .y)))
+  mutate(emmeans_data = map(model_number, ~filter(specialization_emmeans_df, model_number == .))) %>%
+  mutate(predicted_plot = map2(emmeans_data, metric, ~make_specialization_plot(emmeans_data = .x, yvar = .y)))
+
+# specialization_results_plots$predicted_plot
 ```
 
 **For Question 2 (pollen ~ visitation), make plots for publication**
@@ -408,6 +430,8 @@ make_correlation_plot <- function(ggeffects, data, yvar){
 
 correlation_results_plots <- correlation_predictions %>%
   mutate(predicted_plot = pmap(list(ggeffects, data, metric), ~make_correlation_plot(ggeffects = ..1, data = ..2, yvar = ..3)))
+
+correlation_results_plots$predicted_plot
 ```
 
 ## Step 5: Combine specialization and correlation results into one plot
@@ -417,17 +441,17 @@ all_results <- bind_rows(specialization_results_plots, correlation_results_plots
   arrange(metric, model_number)
 
 results_multiplot <- ggarrange(plotlist = all_results$predicted_plot, ncol = 2, nrow = 3, labels = "AUTO", font.label = list(size = 24, face = "plain"))
-results_multiplot
+ggview(results_multiplot, width = 8, height = 11, unit = "in")
 ```
 
 ## Step 6: Export results
 ```{r step6}
 #Q1 + Q2
 write.csv(results_tidy_confint, "../results/analyses_sampling_method/tables/Sampling_method_results_summary_tables.csv", row.names = FALSE) #model summaries
-ggsave("../results/analyses_sampling_method/figures/Sampling_method_results_multiplot.png", results_multiplot, dpi = 300, units = "in", width = 8, height = 11)
+ggsave("../results/analyses_sampling_method/figures/Sampling_method_results_multiplot.png", results_multiplot, dpi = 600, units = "in", width = 8, height = 11)
 
 #Q1
 write.csv(specialization_emmeans, "../results/analyses_sampling_method/tables/Specialization_results_emmeans.csv", row.names = FALSE)
 write.csv(specialization_contrasts, "../results/analyses_sampling_method/tables/Specialization_results_contrasts.csv", row.names = FALSE) 
-ggsave("../results/analyses_sampling_method/figures/Sampling_method_specialization_density_plot.png", specialization_density_plot, dpi = 300, units = "in", width = 9, height = 5)
+ggsave("../results/analyses_sampling_method/figures/Sampling_method_specialization_density_plot.png", specialization_density_plot, dpi = 600, units = "in", width = 9, height = 5)
 ```

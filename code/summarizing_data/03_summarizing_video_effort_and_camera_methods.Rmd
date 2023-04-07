@@ -46,18 +46,18 @@ When summarizing data for methods, I will also need the datasets for:
 
 ```{r step1}
 #Video data to analyze
-data_experiment <- read.csv("../data/export/intermediate/Camera_data_filtered_for_experiment.csv")
-data_metanetwork <- read.csv("../data/export/intermediate/Camera_data_filtered_for_metanetwork.csv")
-data_sampling_method <- read.csv("../data/export/intermediate/Camera_data_filtered_for_sampling_method.csv")
+data_experiment <- read.csv("../../data/export/intermediate/Camera_data_filtered_for_experiment.csv")
+data_metanetwork <- read.csv("../../data/export/intermediate/Camera_data_filtered_for_metanetwork.csv")
+data_sampling_method <- read.csv("../../data/export/intermediate/Camera_data_filtered_for_sampling_method.csv")
 
 #Camera location data
-camera_locations <- read.csv("../data/import/data/cameras/Camera_locations_2016-2018.csv")
+camera_locations <- read.csv("../../data/import/data/cameras/Camera_locations_2016-2018.csv")
 
 #Experimental timeline data (what happened on each day)
-exp_info <- read.csv("../data/import/data/Experiment_dates_2016-2018.csv")
+exp_info <- read.csv("../../data/import/data/Experiment_dates_2016-2018.csv")
 
 #Function to calculate basic summary stats (mean, median, etc.)
-source("../code/helper_functions/Calculate_basic_summary_stats.R")
+source("../../code/helper_functions/Calculate_basic_summary_stats.R")
 ```
 
 ## Step 2: Calculate video effort (video hours) for experiment
@@ -394,7 +394,7 @@ floral_array_species <- camera_locations %>%
 floral_array_species 
 
 #Add scientific name, etc. for supplement
-plant_info <- read.csv("../data/import/data/Plant_codes_species_list.csv") %>%
+plant_info <- read.csv("../../data/import/data/Plant_codes_species_list.csv") %>%
   select(plant_family, plant_scientific_name, plant_species)
 
 floral_array_species_supp <- floral_array_species %>%
@@ -408,7 +408,7 @@ check01 <- floral_array_species_supp %>%
   filter(!(plant_species %in% data_experiment$plant_species))
 
 #Export
-write.csv(floral_array_species_supp, "../data/export/supp_tables/List_of_floral_array_species_for_Supplement.csv", row.names = FALSE)
+write.csv(floral_array_species_supp, "../../data/export/supp_tables/List_of_floral_array_species_for_Supplement.csv", row.names = FALSE)
 ```
 
 ## Step 6: Calculate when floral arrays were established (i.e., how many days in advance of experiment start)
@@ -480,6 +480,4 @@ hours_total_sampling_method <- data_sampling_method %>%
 
 hours_total_sampling_method
 ```
-
-
 

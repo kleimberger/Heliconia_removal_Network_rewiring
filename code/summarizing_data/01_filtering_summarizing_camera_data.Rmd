@@ -48,7 +48,7 @@ library(ggplot2)
 ```{r step1, warning=FALSE}
 ## 1. Create column for unique camera ID
 ## 2. Convert start/end columns into period objects, so can treat them as times when filtering out afternoon videos from covering days
-data <- read.csv("../data/import/data/cameras/Camera_data_with_flower_counts_2016-2018.csv") %>%
+data <- read.csv("data/import/data/cameras/Camera_data_with_flower_counts_2016-2018.csv") %>%
   mutate(camera_id = paste(year, patch, plant_species, camera_num, sep = "_")) %>% 
   mutate(across(c(video_start, video_end), ~lubridate::hm(.))) %>%
   mutate(across(c(sighting_start, sighting_end), ~lubridate::hms(.)))
@@ -199,13 +199,13 @@ At this point it's also good to think ahead about the different datasets I'll ne
 Get files
 ```{r step7a}
 ## Source the summarizing function
-source("../code/helper_functions/Summarize_camera_data.R")
+source("../../code/helper_functions/Summarize_camera_data.R")
 
 ## Get scientific names for birds and plants (not just abbreviations). Will add after summarizing 
-bird_names <- read.csv("../data/import/data/Hummingbird_codes_species_list.csv")
+bird_names <- read.csv("../../data/import/data/Hummingbird_codes_species_list.csv")
 
 ## Plant names. Will use this for camera data only; for pollen data, do not always know exact plant species associated with each pollen morphotype
-plant_names <- read.csv("../data/import/data/Plant_codes_species_list.csv") %>%
+plant_names <- read.csv("../../data/import/data/Plant_codes_species_list.csv") %>%
   select(plant_species, plant_scientific_name) %>%
   filter(!is.na(plant_species) & plant_species != "") #Get rid of blank rows
 ```
@@ -216,13 +216,16 @@ Summarize data
 sighting_rates_for_pp_networks = data_for_experiment %>%
   calculate_sighting_rates(data = ., level_org = "plant_species", level_time = "exp_phase", level_bird = "camera_spp_separate", sightings = "with_visit", include_unknown_spp = FALSE) %>%
   left_join(bird_names) %>%
-  left_join(plant_names)
+  left_join(plant_names) %>%
+  select(-flowers, -subset) %>%
+  select(year, patch, control_treatment, exp_phase, bird_species, plant_species, everything())
 
 ## For meta-network, first filter to data from 'pre' period, which are not affected by experiment. Could probably also include data 'post' period of control sites, but just looking at pre period for simplicity
 sighting_rates_for_metanetwork = data_for_metanetwork %>%
   calculate_sighting_rates(data = ., level_org = "plant_species_across_sites", level_time = "all", level_bird = "camera_spp_separate", sightings = "with_visit", include_unknown_spp = FALSE) %>%
   left_join(bird_names) %>%
-  left_join(plant_names)
+  left_join(plant_names) %>%
+  select(-flowers, -subset)
 ```
 
 ## Step 8: Summarize visitors to *Heliconia* (for general results)
@@ -274,13 +277,13 @@ honest_vs_rob
 ## Step 10: Export
 ```{r step10}
 ## Camera data, filtered but not summarized
-write.csv(data_for_experiment, "../data/export/intermediate/Camera_data_filtered_for_experiment.csv", row.names = FALSE)
-write.csv(data_for_metanetwork, "../data/export/intermediate/Camera_data_filtered_for_metanetwork.csv", row.names = FALSE) #'normal' visitation
-write.csv(data_for_sampling_method, "../data/export/intermediate/Camera_data_filtered_for_sampling_method.csv", row.names = FALSE)
+write.csv(data_for_experiment, "../../data/export/intermediate/Camera_data_filtered_for_experiment.csv", row.names = FALSE)
+write.csv(data_for_metanetwork, "../../data/export/intermediate/Camera_data_filtered_for_metanetwork.csv", row.names = FALSE) #'normal' visitation
+write.csv(data_for_sampling_method, "../../data/export/intermediate/Camera_data_filtered_for_sampling_method.csv", row.names = FALSE)
 
 ## Camera data, summarized for analyses using pre and post networks from individual replicates
-write.csv(sighting_rates_for_pp_networks, "../data/export/for_analysis/Camera_data_summarized_for_pp_networks.csv", row.names = FALSE)
+write.csv(sighting_rates_for_pp_networks, "../../data/export/for_analysis/Camera_data_summarized_for_pp_networks.csv", row.names = FALSE)
 
 ## Camera data, summarized for visualization of meta-network
-write.csv(sighting_rates_for_metanetwork, "../data/export/for_analysis/Camera_data_summarized_for_metanetwork.csv", row.names = FALSE) 
+write.csv(sighting_rates_for_metanetwork, "../../data/export/for_analysis/Camera_data_summarized_for_metanetwork.csv", row.names = FALSE) 
 ```

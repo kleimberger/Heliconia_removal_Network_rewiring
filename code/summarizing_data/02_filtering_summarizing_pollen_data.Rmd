@@ -45,7 +45,7 @@ In this dataset, pollen samples were collected from captured hummingbirds and mo
 Pollen slides were then reviewed and any pollen morphotypes were identified; this is the resulting dataset. At a minimum, there is one row per microscope slide. If >1 pollen types were observed on a slide, then there are additional rows per slide.
 ```{r step1}
 #1. Rename 'site' in anticipation of matching column name in camera data (patch = site)
-pollen <- read.csv("../data/import/data/pollen_on_birds/Pollen_slide_data_2012-2018.csv") %>%
+pollen <- read.csv("../../data/import/data/pollen_on_birds/Pollen_slide_data_2012-2018.csv") %>%
   rename(patch = site)
 ```
 
@@ -538,18 +538,18 @@ num_morphotypes_known_family/num_morphotypes_total
 ## Step 10: Export data
 ```{r step10}
 ## Camera data, filtered but not summarized
-write.csv(data_for_experiment, "../data/export/intermediate/Pollen_data_filtered_for_experiment.csv", row.names = FALSE) 
-write.csv(data_for_normal_visitation, "../data/export/intermediate/Pollen_data_filtered_for_metanetwork.csv", row.names = FALSE) #'normal' visitation
-write.csv(data_for_sampling_method, "../data/export/intermediate/Pollen_data_filtered_for_sampling_method.csv", row.names = FALSE)
+write.csv(data_for_experiment, "../../data/export/intermediate/Pollen_data_filtered_for_experiment.csv", row.names = FALSE) 
+write.csv(data_for_normal_visitation, "../../data/export/intermediate/Pollen_data_filtered_for_metanetwork.csv", row.names = FALSE) #'normal' visitation
+write.csv(data_for_sampling_method, "../../data/export/intermediate/Pollen_data_filtered_for_sampling_method.csv", row.names = FALSE)
 
 #Summarized data for analysis
 
 #Summarized morphotype richness
-write.csv(morphotypes_per_slide, "../data/export/for_analysis/Individual_specialization_for_analysis.csv", row.names = FALSE) 
+write.csv(morphotypes_per_slide, "../../data/export/for_analysis/Individual_specialization_for_analysis.csv", row.names = FALSE) 
 
 #Interaction frequencies between plants + hummingbirds (per replicate)
-write.csv(frequencies_for_pp_networks, "../data/export/for_analysis/Pollen_data_summarized_for_pp_networks.csv", row.names = FALSE)
+write.csv(frequencies_for_pp_networks, "../../data/export/for_analysis/Pollen_data_summarized_for_pp_networks.csv", row.names = FALSE)
 
 #Interaction frequencies between plants + hummingbirds (meta-network)
-write.csv(frequencies_for_metanetwork, "../data/export/for_analysis/Pollen_data_summarized_for_metanetwork.csv", row.names = FALSE) 
+write.csv(frequencies_for_metanetwork, "../../data/export/for_analysis/Pollen_data_summarized_for_metanetwork.csv", row.names = FALSE) 
 ```

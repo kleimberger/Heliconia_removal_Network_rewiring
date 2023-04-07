@@ -15,6 +15,8 @@ Visualize overall network of plant-hummingbird interactions for this study syste
 These interactions can be thought of 'normal' visitation patterns, unmanipulated by the Heliconia removal experiment, because the data used are only from the 'pre' period.
 
 ```{r setup, include = FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+
 library(tidyr)
 library(dplyr)
 library(bipartite)
@@ -27,7 +29,7 @@ These datasets have already been summarized in scripts 01-02
 **Pollen data**
 ```{r step1a}
 #Rename Heliconia genus. Will hide all other plant species in the visualization, becaues the morphotype names will not mean much to anyone else
-pollen_data <- read.csv("../data/export/for_analysis/Pollen_data_summarized_for_metanetwork.csv") %>%
+pollen_data <- read.csv("../../data/export/for_analysis/Pollen_data_summarized_for_metanetwork.csv") %>%
   select(bird_scientific_name, pollen_morphotype, num_slides) %>%
   mutate(pollen_morphotype = ifelse(pollen_morphotype == "HELICONIA01", "Heliconia", pollen_morphotype))
 
@@ -47,7 +49,7 @@ rownames(pollen_matrix) <- as.character(pollen_data_wide$pollen_morphotype)
 
 **Camera data**
 ```{r step1b}
-camera_data <- read.csv("../data/export/for_analysis/Camera_data_summarized_for_metanetwork.csv") %>%
+camera_data <- read.csv("../../data/export/for_analysis/Camera_data_summarized_for_metanetwork.csv") %>%
   select(bird_scientific_name, plant_scientific_name, sightings_per_hour) %>%
   mutate(plant_scientific_name = ifelse(plant_scientific_name == "Drymonia sp.", "Drymonia", plant_scientific_name)) %>% 
   mutate(plant_scientific_name = ifelse(plant_scientific_name == "Renealmia sp.", "Renealmia", plant_scientific_name)) %>% 
@@ -101,7 +103,7 @@ bipartite::plotweb(pollen_matrix, method = "cca", arrow = "no",
                    bor.col.interaction = t(ifelse(pollen_matrix[,] > 0 & rownames(pollen_matrix) == "Heliconia", red, "black")))
 
 pollen_network <- grDevices::recordPlot()
-png("../results/network_visualizations/metanetworks/Pollen_metanetwork.png", width = 12, height = 10, res = 300, units = "in", bg = "white")
+png("../../results/network_visualizations/metanetworks/Pollen_metanetwork.png", width = 12, height = 10, res = 600, units = "in", bg = "white")
 pollen_network
 dev.off()
 ```
@@ -126,7 +128,7 @@ bipartite::plotweb(camera_matrix, method = "cca", arrow = "no",
                    bor.col.interaction = t(ifelse(camera_matrix[,] > 0 & rownames(camera_matrix) == "Heliconia", red, "black")))
 
 camera_network <- grDevices::recordPlot()
-png("../results/network_visualizations/metanetworks/Camera_metanetwork.png", width = 12, height = 10, res = 300, units = "in", bg = "white")
+png("../../results/network_visualizations/metanetworks/Camera_metanetwork.png", width = 12, height = 10, res = 600, units = "in", bg = "white")
 camera_network
 dev.off()
 ```
@@ -135,6 +137,6 @@ dev.off()
 ```{r}
 network_multiplot <- ggpubr::ggarrange(camera_network, pollen_network, ncol = 1, align = "h")
 
-ggplot2::ggsave("../results/network_visualizations/metanetworks/Pollen_and_camera_metanetworks_multiplot.png", network_multiplot, width = 10, height = 18, dpi = 300, units = "in", bg = "white")
+ggplot2::ggsave("../../results/network_visualizations/metanetworks/Pollen_and_camera_metanetworks_multiplot.png", network_multiplot, width = 10, height = 18, dpi = 600, units = "in", bg = "white")
 ```
 

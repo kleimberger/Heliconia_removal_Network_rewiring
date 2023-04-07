@@ -24,6 +24,8 @@ Visualize the network and calculate network metrics of interest. These network m
 - Sampling completeness (Chao1, ACE)
 
 ```{r setup, include = FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+
 library(dplyr)
 library(tidyr)
 library(purrr)
@@ -42,7 +44,7 @@ Data have already been summarized to level of pre/post in previous scripts (01-0
 #3. When plotting networks, it will be difficult to italicize the "sp." for plant species with unknown species, so just remove it now
 #4. Convert interaction frequency to integer and round. This is for calculating d', which can only be calculated from integers
 #5. Reorder columns
-data_cameras <- read.csv("../data/export/for_analysis/Camera_data_summarized_for_pp_networks.csv") %>%
+data_cameras <- read.csv("../../data/export/for_analysis/Camera_data_summarized_for_pp_networks.csv") %>%
   select(-c(subset, flowers, plant_species, bird_species)) %>%
   rename(interaction_frequency = sightings_per_hour, plant_species = plant_scientific_name, bird_species = bird_scientific_name) %>%
   mutate(plant_species = ifelse(plant_species == "Drymonia sp.", "Drymonia", plant_species)) %>%
@@ -55,7 +57,7 @@ data_cameras <- read.csv("../data/export/for_analysis/Camera_data_summarized_for
 #1. Remove unneeded columns
 #2. Standardize column names between the two datasets
 #3. Standardize names of experimental periods (capture_1/capture_2 -> pre/post)
-data_pollen <- read.csv("../data/export/for_analysis/Pollen_data_summarized_for_pp_networks.csv") %>%
+data_pollen <- read.csv("../../data/export/for_analysis/Pollen_data_summarized_for_pp_networks.csv") %>%
   select(-c(bird_species)) %>%
   rename(interaction_frequency = num_slides, plant_species = pollen_morphotype, bird_species = bird_scientific_name) %>%
   filter(exp_phase == "capture_1" | exp_phase == "capture_2") %>%
@@ -79,8 +81,8 @@ network_data <- data_cameras %>%
 
 **Since I need to make so many different networks, I've written some functions that I'll apply using purrr:map()**
 ```{r step2a, message = FALSE}
-source("../code/helper_functions/Build_and_visualize_networks_for_experiment.R")
-source("../code/helper_functions/Extract_data_from_safely_and_quietly_lists.R")
+source("../../code/helper_functions/Build_and_visualize_networks_for_experiment.R")
+source("../../code/helper_functions/Extract_data_from_safely_and_quietly_lists.R")
 
 #To preserve side effects (error/warning messages) while running these functions, I'll wrap functions in purrr::safely() and quietly, then extract the results
 
@@ -240,7 +242,8 @@ unpaired <- specialization_results_for_analysis %>%
   
 #Flag unpaired networks
 specialization_results_for_analysis <- specialization_results_for_analysis %>%
-  left_join(unpaired)
+  left_join(unpaired) %>%
+  select(bird_group, sampling_method, year, patch, control_treatment, exp_phase, unpaired, everything())
 ```
 
 ## Step 4: Calculate network-level interaction turnover (aka dissimilarity, aka pre-to-post beta diversity) and its additive components
@@ -325,7 +328,7 @@ turnover_results_for_analysis <- turnover_results_fruend %>%
 
 ## Step 5: Calculate network-level sampling completeness
 
-To calculate sampling completeness, I need actual numbers of observations - NOT rates, and NOT the rate converted to an integer (x 10,000). So for the camera data, the interaction frequency needs to be the number of sightings. For the pollen data, number of slides is fine; this the interaction frequency used in any calculations so far.
+To estimate sampling completeness, I need actual numbers of observations - NOT rates, and NOT the rate converted to an integer (x 10,000). So for the camera data, the interaction frequency needs to be the number of sightings. For the pollen data, number of slides is fine; this the interaction frequency used in any calculations so far.
 
 ```{r step5, message = FALSE}
 #Re-make network results for camera data using number of sightings, not sighting rate
@@ -353,17 +356,17 @@ completeness_results_for_analysis <- completeness_results %>%
   unnest(completeness) %>%
   rename(value = "V1") %>%
   pivot_wider(names_from = "component", values_from = "value") %>%
-  mutate(completeness.chao1 = S.obs/S.chao1) %>%
-  mutate(completeness.ACE = S.obs/S.ACE)
+  select(-se.chao1, -contains("ACE")) %>% #Will just use Chao 1, since ACE has missing values
+  mutate(completeness.chao1 = S.obs/S.chao1)
 ```
 
 ## Step 6: Export results
 
 ```{r step6}
-write.csv(specialization_results_for_analysis, "../data/export/for_analysis/Network_specialization_for_analysis.csv", row.names = FALSE)
-write.csv(turnover_results_for_analysis, "../data/export/for_analysis/Network_dissimilarity_for_analysis.csv", row.names = FALSE)
-write.csv(completeness_results_for_analysis, "../data/export/for_analysis/Sampling_completeness_for_analysis.csv", row.names = FALSE)
+write.csv(specialization_results_for_analysis, "../../data/export/for_analysis/Network_specialization_for_analysis.csv", row.names = FALSE)
+write.csv(turnover_results_for_analysis, "../../data/export/for_analysis/Network_dissimilarity_for_analysis.csv", row.names = FALSE)
+write.csv(completeness_results_for_analysis, "../../data/export/for_analysis/Sampling_completeness_for_analysis.csv", row.names = FALSE)
 
-path_name <- c("../results/network_visualizations/pre_post_networks_experiment")
+path_name <- c("../../results/network_visualizations/pre_post_networks_experiment")
 walk2(network_results$plotname, network_results$network_plot, ~ggplot2::ggsave(filename = .x, path = path_name, plot = .y, height = 12, width = 10, bg = "white", device = "png"))
 ```

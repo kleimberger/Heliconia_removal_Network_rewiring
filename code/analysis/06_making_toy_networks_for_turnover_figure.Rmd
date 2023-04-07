@@ -13,11 +13,12 @@ knit: (function(inputFile, encoding) {
 Make demo networks to help communicate each component of network dissimilarity (total, species turnover, and 'rewiring')
 
 ```{r setup, include = FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+
 library(vegan)
 library(dplyr)
 library(tidyr)
 library(bipartite)
-
 ```
 
 ## Step 1: Make up some data
