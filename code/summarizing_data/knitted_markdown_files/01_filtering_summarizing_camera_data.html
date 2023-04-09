@@ -446,7 +446,15 @@ check04 &lt;- data %&gt;%
 check05 &lt;- data %&gt;%
   filter(treatment_cover_day == 1) %&gt;%
   filter(video_end &gt;= lubridate::hm(&quot;11:30&quot;)) %&gt;%
-  filter(sightings_yes_or_no == &quot;Y&quot;)</code></pre>
+  filter(sightings_yes_or_no == &quot;Y&quot;)
+
+## Which species have NA for flowers?
+check06 &lt;- data %&gt;%
+  filter(is.na(flowers_camera_video)) %&gt;%
+  group_by(plant_species) %&gt;%
+  summarise(n = n()) %&gt;%
+  ungroup() %&gt;%
+  arrange(desc(n))</code></pre>
 </div>
 <div id="step-3-filter-data-for-all-analyses" class="section level2">
 <h2>Step 3: Filter data for all analyses</h2>
@@ -490,10 +498,9 @@ smaller datasets are created)</p>
   distinct(year, patch, control_treatment, camera_num, date_video, exp_phase, file_id, video_length) %&gt;%
   group_by(year, patch, control_treatment, camera_num, date_video, exp_phase) %&gt;%
   summarise(video_hours = sum(video_length)) %&gt;%
-  ungroup()</code></pre>
-<pre><code>## `summarise()` has grouped output by &#39;year&#39;, &#39;patch&#39;, &#39;control_treatment&#39;,
-## &#39;camera_num&#39;, &#39;date_video&#39;. You can override using the `.groups` argument.</code></pre>
-<pre class="r"><code>#Number of hours, summarized across cameras
+  ungroup()
+
+#Number of hours, summarized across cameras
 hours_total &lt;- hours_per_camera_date %&gt;%
   summarise(video_hours = sum(video_hours)) %&gt;%
   ungroup()
@@ -502,7 +509,7 @@ hours_total</code></pre>
 <pre><code>## # A tibble: 1 × 1
 ##   video_hours
 ##         &lt;dbl&gt;
-## 1      20759.</code></pre>
+## 1      20735.</code></pre>
 </div>
 <div id="step-4-filter-data-for-analysis-of-experiment" class="section level2">
 <h2>Step 4: Filter data for analysis of experiment</h2>
@@ -513,6 +520,14 @@ time period means that I cannot look at that change!</p>
 <pre class="r"><code>#Remove dates that do not correspond to pre and post; sometimes videos were reviewed during setup, for example.
 data04 &lt;- data03 %&gt;%
   filter(video_priority == 1)
+
+## Which species have NA for flowers?
+check07 &lt;- data04 %&gt;%
+  filter(is.na(flowers_camera_video)) %&gt;%
+  group_by(plant_species) %&gt;%
+  summarise(n = n()) %&gt;%
+  ungroup() %&gt;%
+  arrange(desc(n))
 
 #Identify cameras that have data from both experimental periods
 cameras_pre_and_post &lt;- data04 %&gt;%
@@ -526,8 +541,9 @@ cameras_pre_and_post &lt;- data04 %&gt;%
 data_for_experiment &lt;- data04 %&gt;%
   filter(camera_id %in% cameras_pre_and_post$camera_id)</code></pre>
 </div>
-<div id="step-5-filter-data-for-normal-visitation" class="section level2">
-<h2>Step 5: Filter data for ‘normal’ visitation</h2>
+<div id="step-5-filter-data-for-normal-naturalunmanipulated-visitation" class="section level2">
+<h2>Step 5: Filter data for ‘normal’ (natural/unmanipulated)
+visitation</h2>
 <p>Remove data from ‘post’ period of treatment replicates (i.e., data
 affected by experimental <em>Heliconia</em> removal)</p>
 <pre class="r"><code>data_for_metanetwork &lt;- data03 %&gt;%
@@ -536,8 +552,8 @@ affected by experimental <em>Heliconia</em> removal)</p>
 <div id="step-6-filter-data-for-analysis-of-sampling-method" class="section level2">
 <h2>Step 6: Filter data for analysis of sampling method</h2>
 <p>Want pollen and camera networks from the same time period, ‘pre’
-only. Easiest to just use experiment data, subset to ‘pre’ period.</p>
-<pre class="r"><code>data_for_sampling_method &lt;- data_for_experiment %&gt;%
+only.</p>
+<pre class="r"><code>data_for_sampling_method &lt;- data04 %&gt;%
   filter(exp_phase == &quot;pre&quot;)</code></pre>
 </div>
 <div id="step-7-summarize-data" class="section level2">
@@ -605,16 +621,9 @@ sighting_rates_heto &lt;- data_for_metanetwork %&gt;%
   calculate_sighting_rates(data = ., level_org = &quot;plant_species_across_sites&quot;, level_time = &quot;all&quot;, level_bird = &quot;camera_spp_separate&quot;, sightings = &quot;with_visit&quot;, include_unknown_spp = TRUE) %&gt;%
   left_join(bird_names) %&gt;%
   left_join(plant_names) %&gt;%
-  filter(plant_species == &quot;HETO&quot;)</code></pre>
-<pre><code>## `summarise()` has grouped output by &#39;plant_species&#39;. You can override using the
-## `.groups` argument.
-## Joining, by = &quot;plant_species&quot;
-## Joining, by = &quot;plant_species&quot;
-## Joining, by = &quot;plant_species&quot;
-## Joining, by = &quot;plant_species&quot;
-## Joining, by = &quot;bird_species&quot;
-## Joining, by = &quot;plant_species&quot;</code></pre>
-<pre class="r"><code>num_sightings_heto &lt;- sighting_rates_heto %&gt;%
+  filter(plant_species == &quot;HETO&quot;)
+
+num_sightings_heto &lt;- sighting_rates_heto %&gt;%
   summarise(num_sightings = sum(sightings))
 
 num_sightings_heto_greh_visa &lt;- sighting_rates_heto %&gt;%

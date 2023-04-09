@@ -571,16 +571,6 @@ data_for_experiment &lt;- pollen05 %&gt;%
 #How many slides in this dataset?
 unique(data_for_experiment$slide_id) %&gt;% length()</code></pre>
 <pre><code>## [1] 306</code></pre>
-<pre class="r"><code>#How many hummingbird individuals in this dataset? All species
-unique(data_for_experiment$bird_id) %&gt;% length()</code></pre>
-<pre><code>## [1] 279</code></pre>
-<pre class="r"><code>#How many hummingbird individuals in this dataset? GREH/VISA
-data_for_experiment %&gt;%
-  filter(bird_species == &quot;GREH&quot; | bird_species == &quot;VISA&quot;) %&gt;%
-  distinct(bird_id) %&gt;%
-  pull(bird_id) %&gt;%
-  length()</code></pre>
-<pre><code>## [1] 113</code></pre>
 <p>Indicate which birds are pre-post recaps, i.e., caught in both
 capture sessions (and have pollen data)</p>
 <pre class="r"><code>#Individual birds with pollen data pre and post
@@ -666,8 +656,21 @@ data_for_experiment_paired %&gt;%
   length()</code></pre>
 <pre><code>## [1] 110</code></pre>
 </div>
-<div id="step-5-filter-data-for-normal-naturalunmanipulated-visitation" class="section level2">
-<h2>Step 5: Filter data for ‘normal’ (natural/unmanipulated)
+<div id="step-5-filter-data-for-analysis-of-sampling-method" class="section level2">
+<h2>Step 5: Filter data for analysis of sampling method</h2>
+<pre class="r"><code>#Want pollen and camera networks from the same time period, &#39;pre&#39; only
+#Remove slides with no pollen, because these slides do not provide any information about what flowers hummingbirds are visiting
+data_for_sampling_method &lt;- pollen05 %&gt;%
+  filter(exp_phase == &quot;capture_1&quot;) %&gt;%
+  filter(slide_id %in% slides_with_pollen$slide_id) %&gt;%
+  mutate(bird_group = ifelse(bird_species == &quot;GREH&quot; | bird_species == &quot;VISA&quot;, &quot;greh_visa&quot;, &quot;other&quot;))
+
+#How many slides in this dataset?
+unique(data_for_sampling_method$slide_id) %&gt;% length()</code></pre>
+<pre><code>## [1] 167</code></pre>
+</div>
+<div id="step-6-filter-data-for-normal-naturalunmanipulated-visitation" class="section level2">
+<h2>Step 6: Filter data for ‘normal’ (natural/unmanipulated)
 visitation</h2>
 <pre class="r"><code>#Remove data from &#39;post&#39; period of treatment replicates (i.e., data affected by experimental *Heliconia* removal)
 #Remove slides with no pollen, because these slides do not provide any information about what flowers hummingbirds are visiting
@@ -679,19 +682,6 @@ data_for_normal_visitation &lt;- pollen05 %&gt;%
 #How many slides in this dataset?
 unique(data_for_normal_visitation$slide_id) %&gt;% length()</code></pre>
 <pre><code>## [1] 228</code></pre>
-</div>
-<div id="step-6-filter-data-for-analysis-of-sampling-method" class="section level2">
-<h2>Step 6: Filter data for analysis of sampling method</h2>
-<pre class="r"><code>#Want pollen and camera networks from the same time period, &#39;pre&#39; only
-#Remove slides with no pollen, because these slides do not provide any information about what flowers hummingbirds are visiting
-data_for_sampling_method &lt;- pollen05 %&gt;%
-  filter(exp_phase == &quot;capture_1&quot;) %&gt;%
-  filter(slide_id %in% slides_with_pollen$slide_id) %&gt;%
-  mutate(bird_group = ifelse(bird_species == &quot;GREH&quot; | bird_species == &quot;VISA&quot;, &quot;greh_visa&quot;, &quot;other&quot;))
-
-#How many slides in this dataset?
-unique(data_for_sampling_method$slide_id) %&gt;% length()</code></pre>
-<pre><code>## [1] 167</code></pre>
 </div>
 <div id="step-7-summarize-data-for-analysis" class="section level2">
 <h2>Step 7: Summarize data for analysis</h2>

@@ -455,21 +455,8 @@ establishment_days_sum
 
 ## Step 7: Calculate effort for non-experiment data
 
-Data for 'normal' visitation/metanetwork
-```{r step7a, message = FALSE}
-hours_total_normal_visitation <- data_metanetwork %>%
-  distinct(year, patch, control_treatment, camera_num, date_video, exp_phase, file_id, video_length) %>%
-  group_by(year, patch, control_treatment, camera_num, date_video, exp_phase) %>%
-  summarise(video_hours = sum(video_length)) %>%
-  ungroup() %>%
-  summarise(video_hours = sum(video_hours)) %>%
-  ungroup()
-
-hours_total_normal_visitation
-```
-
 Data for sampling method analyses
-```{r step7b, message = FALSE}
+```{r step7a, message = FALSE}
 hours_total_sampling_method <- data_sampling_method %>%
   distinct(year, patch, control_treatment, camera_num, date_video, exp_phase, file_id, video_length) %>%
   group_by(year, patch, control_treatment, camera_num, date_video, exp_phase) %>%
@@ -481,3 +468,15 @@ hours_total_sampling_method <- data_sampling_method %>%
 hours_total_sampling_method
 ```
 
+Data for 'normal' visitation/metanetwork
+```{r step7b, message = FALSE}
+hours_total_normal_visitation <- data_metanetwork %>%
+  distinct(year, patch, control_treatment, camera_num, date_video, exp_phase, file_id, video_length) %>%
+  group_by(year, patch, control_treatment, camera_num, date_video, exp_phase) %>%
+  summarise(video_hours = sum(video_length)) %>%
+  ungroup() %>%
+  summarise(video_hours = sum(video_hours)) %>%
+  ungroup()
+
+hours_total_normal_visitation
+```

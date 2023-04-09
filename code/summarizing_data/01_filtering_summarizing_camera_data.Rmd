@@ -50,7 +50,7 @@ library(ggplot2)
 ```{r step1}
 ## 1. Create column for unique camera ID
 ## 2. Convert start/end columns into period objects, so can treat them as times when filtering out afternoon videos from covering days
-data <- read.csv("data/import/data/cameras/Camera_data_with_flower_counts_2016-2018.csv") %>%
+data <- read.csv("../../data/import/data/cameras/Camera_data_with_flower_counts_2016-2018.csv") %>%
   mutate(camera_id = paste(year, patch, plant_species, camera_num, sep = "_")) %>% 
   mutate(across(c(video_start, video_end), ~lubridate::hm(.))) %>%
   mutate(across(c(sighting_start, sighting_end), ~lubridate::hms(.)))
@@ -91,7 +91,7 @@ check05 <- data %>%
   filter(sightings_yes_or_no == "Y")
 
 ## Which species have NA for flowers?
-check06 <- data02 %>%
+check06 <- data %>%
   filter(is.na(flowers_camera_video)) %>%
   group_by(plant_species) %>%
   summarise(n = n()) %>%
