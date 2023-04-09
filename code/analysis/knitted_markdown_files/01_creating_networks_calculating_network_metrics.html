@@ -688,6 +688,11 @@ completeness_results_for_analysis &lt;- completeness_results %&gt;%
   pivot_wider(names_from = &quot;component&quot;, values_from = &quot;value&quot;) %&gt;%
   select(-year_patch, -se.chao1, -contains(&quot;ACE&quot;)) %&gt;% #Will just use Chao 1, since ACE has missing values
   mutate(completeness.chao1 = S.obs/S.chao1)</code></pre>
+<p>By default, two metrics of sampling completeness were returned, ACE
+and Chao 1. However, calculations of sampling completeness used the raw
+interaction frequencies (integers) and ACE returns NA if interaction
+frequencies aren’t greater than 1. This led to NA for lots of pollen
+networks, so I will just use Chao 1.</p>
 </div>
 <div id="step-6-export-results" class="section level2">
 <h2>Step 6: Export results</h2>

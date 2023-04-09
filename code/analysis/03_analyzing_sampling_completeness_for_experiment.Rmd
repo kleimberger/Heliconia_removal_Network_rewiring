@@ -37,13 +37,10 @@ library(emmeans)
 
 ## Step 1: Get data
 
-Sampling completeness was calculated in script 04, where pre and post networks were created. By default, two metrics of sampling completeness were returned, ACE and Chao 1. However, calculations of sampling completeness used the raw interaction frequencies (integers) and ACE returns NA if interaction frequencies aren't greater than 1. This led to NA for lots of pollen networks, so I will just use Chao 1.
-
-Also, in the next step, I see that 
-```{r step1, message = FALSE}
+```{r step1}
 #Data
 completeness <- read.csv("../../data/export/for_analysis/Sampling_completeness_for_analysis.csv") %>%
-  select(-contains("ACE")) %>%
+  mutate(year_patch = paste(year, patch, sep = "_")) %>%
   mutate(outliers = "with_outliers")
 
 #Add a dataset without outliers
@@ -89,7 +86,7 @@ chao1_plot <- data_for_plot %>%
     geom_boxplot(aes(fill = control_treatment), width = 0.15, position = position_nudge(x = c(-0.15, 0.15)), alpha = 0.5, outlier.shape = NA) +
     geom_point(aes(fill = control_treatment), colour = "black", shape = 21, position = position_dodge(width = 0.45), alpha = 1, size = 2) +
     stat_summary(fun = mean, position = position_nudge(x = c(-0.15, 0.15)), geom = "point", shape = 18, size = 3) +
-    geom_line(aes(group = year_patch, linetype = outlier_indicator), alpha = 0.6, size = 0.5) +
+    geom_line(aes(group = year_patch, linetype = outlier_indicator), alpha = 0.6, linewidth = 0.5) +
     theme_bw(base_size = 20) +
     scale_fill_manual(values = colors) +
     scale_color_manual(values = colors) +
@@ -150,7 +147,8 @@ completeness_contrasts <- tibble(model_number = c(1, 2, 3),
   mutate(contrasts = purrr::map(model, calculate_contrasts)) %>%
   unnest(contrasts) %>%
   mutate_if(is.numeric, ~round(., digits = 2)) %>%
-  select(-model)
+  select(-model) %>% 
+  select(model_number, model_name, exp_phase_revpairwise, control_treatment, ratio, lower.CL, upper.CL, everything())
 ```
 
 ## Step 5: Export results

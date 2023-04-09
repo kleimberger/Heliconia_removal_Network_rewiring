@@ -360,6 +360,8 @@ completeness_results_for_analysis <- completeness_results %>%
   mutate(completeness.chao1 = S.obs/S.chao1)
 ```
 
+By default, two metrics of sampling completeness were returned, ACE and Chao 1. However, calculations of sampling completeness used the raw interaction frequencies (integers) and ACE returns NA if interaction frequencies aren't greater than 1. This led to NA for lots of pollen networks, so I will just use Chao 1.
+
 ## Step 6: Export results
 
 ```{r step6}

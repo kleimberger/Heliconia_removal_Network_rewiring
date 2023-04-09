@@ -68,13 +68,13 @@ How many interactions in each network?
 plotweb(before_matrix, method = "normal", arrow = "no", low.lablength = 0, high.lablength = 0) 
 
 network_before <- recordPlot() #from package grDevices
-png("../results/network_visualizations/toy_networks/Toy_network_before_bw.png", width = 12, height = 10, res = 300, units = "in")
+png("../../results/network_visualizations/toy_networks/Toy_network_before_bw.png", width = 12, height = 10, res = 300, units = "in")
 network_before
 dev.off()
 
 plotweb(after_matrix, method = "normal", arrow = "no", low.lablength = 0, high.lablength = 0)
 network_after <- recordPlot() #from package grDevices
-png("../results/network_visualizations/toy_networks/Toy_network_after_bw.png", width = 12, height = 10, res = 300, units = "in")
+png("../../results/network_visualizations/toy_networks/Toy_network_after_bw.png", width = 12, height = 10, res = 300, units = "in")
 network_after
 dev.off()
 
@@ -135,7 +135,7 @@ plotweb(matrix_binary, method="normal", arrow="no",
 
 
 network_WN <- recordPlot() #from package grDevices
-png("../results/network_visualizations/toy_networks/Toy_network_WN_color_coded.png", width = 12, height = 10, res = 300, units = "in")
+png("../../results/network_visualizations/toy_networks/Toy_network_WN_color_coded.png", width = 12, height = 10, res = 300, units = "in")
 network_WN
 dev.off()
 ```
@@ -148,7 +148,7 @@ plotweb(matrix_binary, method="normal", arrow="no",
                                    ifelse(matrix_coded[,] == 3,  adjustcolor(colors[[2]], alpha.f = 1), "grey80")))) #gain (species turnover)
 
 network_ST <- recordPlot() #from package grDevices
-png("../results/network_visualizations/toy_networks/Toy_network_ST_color_coded.png", width = 12, height = 10, res = 300, units = "in")
+png("../../results/network_visualizations/toy_networks/Toy_network_ST_color_coded.png", width = 12, height = 10, res = 300, units = "in")
 network_ST
 dev.off()
 ```
@@ -161,7 +161,7 @@ plotweb(matrix_binary, method="normal", arrow="no",
                                    ifelse(matrix_coded[,] == 5,  adjustcolor(colors[[4]], alpha.f = 1), "grey80")))) #gain (rewiring)
  
 network_OS <- recordPlot() #from package grDevices
-png("../results/network_visualizations/toy_networks/Toy_network_OS_color_coded.png", width = 12, height = 10, res = 300, units = "in")
+png("../../results/network_visualizations/toy_networks/Toy_network_OS_color_coded.png", width = 12, height = 10, res = 300, units = "in")
 network_OS
 dev.off()
 ```

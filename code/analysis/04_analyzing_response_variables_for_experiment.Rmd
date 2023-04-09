@@ -809,11 +809,11 @@ ggview(turnover_multiplot, units = "in", width = 12, height = 6)
 #SUMMARY TABLES
 path_name <- c("results/analyses_experiment/tables")
 
-write.csv(results_tidy_confint, file.path(path_name, "Network_rewiring_results_summary_tables.csv"), row.names = FALSE)
-write.csv(sample_size, file.path(path_name, "Network_rewiring_results_sample_size_summary.csv"), row.names = FALSE)
-write.csv(emmeans, file.path(path_name,"Network_rewiring_results_emmeans.csv"), row.names = FALSE)
-write.csv(contrasts, file.path(path_name,"Network_rewiring_results_contrasts.csv"), row.names = FALSE)
-write.csv(contrasts_of_contrasts, file.path(path_name, "Network_rewiring_results_contrasts_of_contrasts.csv"), row.names = FALSE)
+write.csv(sample_size, file.path(path_name, "Rewiring_results_sample_size_summary.csv"), row.names = FALSE)
+write.csv(results_tidy_confint, file.path(path_name, "Rewiring_results_summary_tables.csv"), row.names = FALSE)
+write.csv(emmeans, file.path(path_name,"Rewiring_results_emmeans.csv"), row.names = FALSE)
+write.csv(contrasts, file.path(path_name,"Rewiring_results_contrasts.csv"), row.names = FALSE)
+write.csv(contrasts_of_contrasts, file.path(path_name, "Rewiring_results_contrasts_of_contrasts.csv"), row.names = FALSE)
 
 #FIGURES
 path_name <- c("results/analyses_experiment/figures")
