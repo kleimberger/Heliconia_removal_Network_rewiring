@@ -38,6 +38,8 @@ Then, subset this dataset ('full dataset') into different datasets for different
 - Only includes data from 'pre' periods, because want data sampled from the dates ('post' period is not an option because it's affected by *Heliconia* removal)
 
 ```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+
 library(tidyr)
 library(dplyr)
 library(lubridate)
@@ -45,17 +47,17 @@ library(ggplot2)
 ```
 
 ## Step 1: Import camera data + prepare for filtering
-```{r step1, warning=FALSE}
+```{r step1}
 ## 1. Create column for unique camera ID
 ## 2. Convert start/end columns into period objects, so can treat them as times when filtering out afternoon videos from covering days
-data <- read.csv("../../data/import/data/cameras/Camera_data_with_flower_counts_2016-2018.csv") %>%
+data <- read.csv("data/import/data/cameras/Camera_data_with_flower_counts_2016-2018.csv") %>%
   mutate(camera_id = paste(year, patch, plant_species, camera_num, sep = "_")) %>% 
   mutate(across(c(video_start, video_end), ~lubridate::hm(.))) %>%
   mutate(across(c(sighting_start, sighting_end), ~lubridate::hms(.)))
 ```
 
 ## Step 2: Run some initial checks before filtering 
-```{r step2, warning=FALSE}
+```{r step2}
 ## Check strings that failed to parse in previous step
 check01 <- data %>%
   filter(if_any(c(video_start, video_end), ~is.na(.)))
@@ -87,6 +89,14 @@ check05 <- data %>%
   filter(treatment_cover_day == 1) %>%
   filter(video_end >= lubridate::hm("11:30")) %>%
   filter(sightings_yes_or_no == "Y")
+
+## Which species have NA for flowers?
+check06 <- data02 %>%
+  filter(is.na(flowers_camera_video)) %>%
+  group_by(plant_species) %>%
+  summarise(n = n()) %>%
+  ungroup() %>%
+  arrange(desc(n))
 ```
 
 ## Step 3: Filter data for all analyses
@@ -150,10 +160,18 @@ hours_total
 Remove videos that do not correspond to 'pre' and 'post' dates
 
 Remove cameras without data pre and post. For the experiment, I'm interested in the pre-to-post change over time. No data from a given time period means that I cannot look at that change!
-```{r step4, warning = FALSE, message = FALSE}
+```{r step4}
 #Remove dates that do not correspond to pre and post; sometimes videos were reviewed during setup, for example.
 data04 <- data03 %>%
   filter(video_priority == 1)
+
+## Which species have NA for flowers?
+check07 <- data04 %>%
+  filter(is.na(flowers_camera_video)) %>%
+  group_by(plant_species) %>%
+  summarise(n = n()) %>%
+  ungroup() %>%
+  arrange(desc(n))
 
 #Identify cameras that have data from both experimental periods
 cameras_pre_and_post <- data04 %>%
@@ -168,7 +186,7 @@ data_for_experiment <- data04 %>%
   filter(camera_id %in% cameras_pre_and_post$camera_id)
 ```
 
-## Step 5: Filter data for 'normal' visitation
+## Step 5: Filter data for 'normal' (natural/unmanipulated) visitation
 
 Remove data from 'post' period of treatment replicates (i.e., data affected by experimental *Heliconia* removal)
 ```{r step5}
@@ -178,9 +196,9 @@ data_for_metanetwork <- data03 %>%
 
 ## Step 6: Filter data for analysis of sampling method
 
-Want pollen and camera networks from the same time period, 'pre' only. Easiest to just use experiment data, subset to 'pre' period.
+Want pollen and camera networks from the same time period, 'pre' only.
 ```{r step6}
-data_for_sampling_method <- data_for_experiment %>%
+data_for_sampling_method <- data04 %>%
   filter(exp_phase == "pre")
 ```
 
@@ -211,7 +229,7 @@ plant_names <- read.csv("../../data/import/data/Plant_codes_species_list.csv") %
 ```
 
 Summarize data
-```{r step7b, warning = FALSE, message = FALSE}
+```{r step7b}
 ## Pre-post networks
 sighting_rates_for_pp_networks = data_for_experiment %>%
   calculate_sighting_rates(data = ., level_org = "plant_species", level_time = "exp_phase", level_bird = "camera_spp_separate", sightings = "with_visit", include_unknown_spp = FALSE) %>%
