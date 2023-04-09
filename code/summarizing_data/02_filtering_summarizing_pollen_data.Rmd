@@ -207,6 +207,16 @@ data_for_experiment <- pollen05 %>%
 
 #How many slides in this dataset?
 unique(data_for_experiment$slide_id) %>% length()
+
+#How many hummingbird individuals in this dataset? All species
+unique(data_for_experiment$bird_id) %>% length()
+
+#How many hummingbird individuals in this dataset? GREH/VISA
+data_for_experiment %>%
+  filter(bird_species == "GREH" | bird_species == "VISA") %>%
+  distinct(bird_id) %>%
+  pull(bird_id) %>%
+  length()
 ```
 
 Indicate which birds are pre-post recaps, i.e., caught in both capture sessions (and have pollen data)
@@ -249,7 +259,7 @@ recap_summary_greh_visa <- data_for_experiment %>%
 recap_summary_greh_visa
 ```
 
-Remove replicates that do not have pollen samples pre and post (because I am interested in the pre-to-post change)
+Identify replicates that do not have pollen samples pre and post (because I am interested in the pre-to-post change)
 ```{r}
 replicates_pre_and_post <- data_for_experiment %>%
   distinct(year, patch, exp_phase, slide_id) %>%
@@ -260,30 +270,32 @@ replicates_pre_and_post <- data_for_experiment %>%
   filter(capture_1 > 0 & capture_2 > 0) %>%
   mutate(year_patch = paste(year, patch, sep = "_"))
 
-#Are any replicates missing? YES (2017 p58)
+#Are any replicates missing? 
 check01 <- data_for_experiment %>%
   filter(!(year_patch %in% replicates_pre_and_post$year_patch)) %>%
   distinct(year_patch)
 
+#Yes, 1 replicate (2017_58) only has pre data. However, I want to include this replicate in the sampling method analysis so will not remove it yet.
+
 #Remove replicates that are missing paired pre and post data
-data_for_experiment <- data_for_experiment %>%
+data_for_experiment_paired <- data_for_experiment %>%
   filter(year_patch %in% replicates_pre_and_post$year_patch)
 
 #How many slides in this dataset?
-unique(data_for_experiment$slide_id) %>% length()
+unique(data_for_experiment_paired$slide_id) %>% length()
 
 #How many hummingbird individuals in this dataset? All species
-unique(data_for_experiment$bird_id) %>% length()
+unique(data_for_experiment_paired$bird_id) %>% length()
 
 #How many hummingbird individuals in this dataset? GREH/VISA
-data_for_experiment %>%
+data_for_experiment_paired %>%
   filter(bird_species == "GREH" | bird_species == "VISA") %>%
   distinct(bird_id) %>%
   pull(bird_id) %>%
   length()
 ```
 
-## Step 5: Filter data for 'normal' visitation
+## Step 5: Filter data for 'normal' (natural/unmanipulated) visitation
 
 ```{r step5}
 #Remove data from 'post' period of treatment replicates (i.e., data affected by experimental *Heliconia* removal)
@@ -537,13 +549,12 @@ num_morphotypes_known_family/num_morphotypes_total
 
 ## Step 10: Export data
 ```{r step10}
-## Camera data, filtered but not summarized
+#Pollen data, filtered but not summarized
 write.csv(data_for_experiment, "../../data/export/intermediate/Pollen_data_filtered_for_experiment.csv", row.names = FALSE) 
 write.csv(data_for_normal_visitation, "../../data/export/intermediate/Pollen_data_filtered_for_metanetwork.csv", row.names = FALSE) #'normal' visitation
 write.csv(data_for_sampling_method, "../../data/export/intermediate/Pollen_data_filtered_for_sampling_method.csv", row.names = FALSE)
 
 #Summarized data for analysis
-
 #Summarized morphotype richness
 write.csv(morphotypes_per_slide, "../../data/export/for_analysis/Individual_specialization_for_analysis.csv", row.names = FALSE) 
 
