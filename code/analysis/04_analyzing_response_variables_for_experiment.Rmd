@@ -587,7 +587,7 @@ contrasts_turnover <- results %>%
 Extract contrast results
 ```{r step6b}
 #Contrasts for control and treatment replicates separately
-contrasts <- contrasts_specialization_individual %>%
+contrasts_df <- contrasts_specialization_individual %>%
   bind_rows(contrasts_specialization_network) %>%
   select(append(col_names, "contrast")) %>%
   unnest(contrast) %>%
@@ -598,7 +598,7 @@ contrasts <- contrasts_specialization_individual %>%
   select(model_number:contrast, control_treatment, ratio, lower.CL, upper.CL, everything())
 
 #Contrasts for treatment effect; for specialization models, this is the contrast representing the interaction term (contrast of contrasts)
-contrasts_of_contrasts <- contrasts_turnover %>%
+contrasts_of_contrasts_df <- contrasts_turnover %>%
   rename(contrast_of_contrast = contrast) %>%
   bind_rows(contrasts_specialization_network) %>%
   bind_rows(contrasts_specialization_individual) %>%
@@ -632,7 +632,7 @@ pollen_icon <-  png::readPNG("code/analysis/pollen.png")
 Fig. 4: Individual specialization
 ```{r step7d, fig.width = 10, fig.height = 7}
 #INDIVIDUAL SPECIALIZATION
-contrast_plot_individual <- contrasts_of_contrasts %>%
+contrast_plot_individual <- contrasts_of_contrasts_df %>%
   filter(analysis == "specialization_individual") %>%
   mutate(subanalysis = factor(subanalysis, levels = c("all_individuals", "recaptures"), labels = c("All individuals\n", "Recaptures only\n"))) %>%
   make_contrast_plot(contrasts_df = ., xvar = "subanalysis", shading = "above") +
@@ -657,7 +657,7 @@ d_label <-  c(expression(paste("mean "*italic(d)*"′")))
 ssi_label <- c("mean SSI")
 
 #SPECIES-LEVEL SPECIALIZATION (POLLEN)
-contrast_plot_pollen_species <- contrasts_of_contrasts %>%
+contrast_plot_pollen_species <- contrasts_of_contrasts_df %>%
   filter(analysis == "specialization_network" & (yvar == "d" | yvar == "species.specificity.index") & sampling_method == "pollen") %>%
   make_contrast_plot(contrasts_df = ., xvar = "yvar", shading = "below") +
     scale_x_discrete(labels = c(d_label, ssi_label)) +
@@ -670,7 +670,7 @@ contrast_plot_pollen_species <- contrasts_of_contrasts %>%
 ggview(contrast_plot_pollen_species, units = "in", width = 9, height = 6)
 
 #NETWORK-LEVEL SPECIALIZATION (POLLEN)
-contrast_plot_pollen_network <- contrasts_of_contrasts %>%
+contrast_plot_pollen_network <- contrasts_of_contrasts_df %>%
   filter(analysis == "specialization_network" & yvar == "H2" & sampling_method == "pollen") %>%
   make_contrast_plot(contrasts_df = ., xvar = "yvar", shading = "below") +
     scale_x_discrete(labels = c(h2_label)) +
@@ -688,7 +688,7 @@ contrast_plot_pollen_network <- contrasts_of_contrasts %>%
 ggview(contrast_plot_pollen_network, units = "in", width = 9, height = 6)
 
 #SPECIES-LEVEL SPECIALIZATION (CAMERA)
-contrast_plot_camera_species <- contrasts_of_contrasts %>%
+contrast_plot_camera_species <- contrasts_of_contrasts_df %>%
   filter(analysis == "specialization_network" & (yvar == "d" | yvar == "species.specificity.index") & sampling_method == "camera") %>%
   make_contrast_plot(contrasts_df = ., xvar = "yvar", shading = "below") +
     scale_x_discrete(labels = c(d_label, ssi_label)) +
@@ -702,7 +702,7 @@ contrast_plot_camera_species <- contrasts_of_contrasts %>%
 ggview(contrast_plot_camera_species, units = "in", width = 9, height = 6)
 
 #NETWORK-LEVEL SPECIALIZATION (CAMERA)
-contrast_plot_camera_network <- contrasts_of_contrasts %>%
+contrast_plot_camera_network <- contrasts_of_contrasts_df %>%
   filter(analysis == "specialization_network" & yvar == "H2" & sampling_method == "camera") %>%
   make_contrast_plot(contrasts_df = ., xvar = "yvar", shading = "below") +
     scale_x_discrete(labels = c(h2_label)) +
@@ -730,7 +730,7 @@ ggview(contrast_multiplot_species_network, units = "in", width = 14, height = 12
 Fig. 6: Interaction turnover
 ```{r step7e, fig.width = 10, fig.height = 7}
 #INTERACTION TURNOVER
-contrast_plot_turnover <- contrasts_of_contrasts %>%
+contrast_plot_turnover <- contrasts_of_contrasts_df %>%
   filter(analysis == "turnover" & subanalysis == "binary") %>%
   mutate(yvar = factor(yvar, levels = c("WN", "ST", "OS"), labels = c("Total\nturnover", "Species\nturnover", "Among-species\nturnover"))) %>%
   make_contrast_plot(contrasts_df = ., xvar = "yvar", shading = "above") +
@@ -811,9 +811,9 @@ path_name <- c("results/analyses_experiment/tables")
 
 write.csv(sample_size, file.path(path_name, "Rewiring_results_sample_size_summary.csv"), row.names = FALSE)
 write.csv(results_tidy_confint, file.path(path_name, "Rewiring_results_summary_tables.csv"), row.names = FALSE)
-write.csv(emmeans, file.path(path_name,"Rewiring_results_emmeans.csv"), row.names = FALSE)
-write.csv(contrasts, file.path(path_name,"Rewiring_results_contrasts.csv"), row.names = FALSE)
-write.csv(contrasts_of_contrasts, file.path(path_name, "Rewiring_results_contrasts_of_contrasts.csv"), row.names = FALSE)
+write.csv(emmeans_df, file.path(path_name,"Rewiring_results_emmeans.csv"), row.names = FALSE)
+write.csv(contrasts_df, file.path(path_name,"Rewiring_results_contrasts.csv"), row.names = FALSE)
+write.csv(contrasts_of_contrasts_df, file.path(path_name, "Rewiring_results_contrasts_of_contrasts.csv"), row.names = FALSE)
 
 #FIGURES
 path_name <- c("results/analyses_experiment/figures")
