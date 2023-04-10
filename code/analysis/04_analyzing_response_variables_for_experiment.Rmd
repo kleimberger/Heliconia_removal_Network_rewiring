@@ -752,7 +752,7 @@ ggview(contrast_plot_turnover, units = "in", width = 10, height = 7)
 ```
 
 **Interaction plots** (specialization metrics only)
-```{r step7b, message = FALSE, fig.width = 9, fig.height = 9}
+```{r step7b, fig.width = 9, fig.height = 9}
 #Make a bunch of plots, then divide up into reasonablly sized figures in next steps
 interaction_plots <- results %>%
   filter(analysis == "specialization_individual" | analysis == "specialization_network") %>%
@@ -790,7 +790,7 @@ ggview(interaction_multiplot_species_network_gv, units = "in", width = 9, height
 ```
 
 **Control vs. treatment plots** (interaction turnover only)
-```{r step7c}
+```{r step7c, fig.width=11, fig.height=4.5}
 control_vs_treatment_plots <- results %>%
   filter(analysis == "turnover" & subanalysis == "binary") %>%
   mutate(ymax = 1) %>%
@@ -801,7 +801,7 @@ control_vs_treatment_plots <- results %>%
 
 turnover_multiplot <- ggarrange(plotlist = control_vs_treatment_plots$control_vs_treatment_plot, nrow = 1, ncol = 3, legend = "none", labels = "AUTO", font.label = list(size = 24, face = "plain"))
 
-ggview(turnover_multiplot, units = "in", width = 12, height = 6)
+ggview(turnover_multiplot, units = "in", width = 11, height = 4.5)
 ```
 
 ## Step 8: Export results 
@@ -818,13 +818,14 @@ write.csv(contrasts_of_contrasts_df, file.path(path_name, "Rewiring_results_cont
 #FIGURES
 path_name <- c("results/analyses_experiment/figures")
 
-#Interaction plots
-ggsave(file.path(path_name, "Interaction_multiplot_species_and_network_all.png"), interaction_multiplot_species_network_all, dpi = 600, units = "in", width = 9, height = 12, bg = "white")
-ggsave(file.path(path_name, "Interaction_multiplot_species_and_network_gv.png"), interaction_multiplot_species_network_gv, dpi = 600, units = "in", width = 9, height = 9, bg = "white")
-ggsave(file.path(path_name, "Interaction_multiplot_individual.png"), interaction_multiplot_individual, dpi = 600, units = "in", width = 9, height = 9, bg = "white")
+#Plots for main text
+ggsave(file.path(path_name, "Fig4_Contrast_individual.png"), contrast_plot_individual, dpi = 600, units = "in", width = 10, height = 7, bg = "white")
+ggsave(file.path(path_name, "Fig5_Contrast_multiplot_species_and_network.png"), contrast_multiplot_species_network, dpi = 600, units = "in", width = 14, height = 12, bg = "white")
+ggsave(file.path(path_name, "Fig6_Contrast_turnover.png"), contrast_plot_turnover, dpi = 600, units = "in", width = 10, height = 7, bg = "white")
 
-#Contrast plots
-ggsave(file.path(path_name, "Contrast_individual.png"), contrast_plot_individual, dpi = 600, units = "in", width = 10, height = 7, bg = "white")
-ggsave(file.path(path_name, "Contrast_turnover.png"), contrast_plot_turnover, dpi = 600, units = "in", width = 10, height = 7, bg = "white")
-ggsave(file.path(path_name, "Contrast_multiplot_species_and_network.png"), contrast_multiplot_species_network, dpi = 600, units = "in", width = 14, height = 12, bg = "white")
+#Plots for supporting information
+ggsave(file.path(path_name, "FigS3_Interaction_multiplot_individual.png"), interaction_multiplot_individual, dpi = 600, units = "in", width = 9, height = 9, bg = "white")
+ggsave(file.path(path_name, "FigS4_Interaction_multiplot_species_network_all.png"), interaction_multiplot_species_network_all, dpi = 600, units = "in", width = 9, height = 12, bg = "white")
+ggsave(file.path(path_name, "FigS5_Interaction_multiplot_species_network_gv.png"), interaction_multiplot_species_network_gv, dpi = 600, units = "in", width = 9, height = 9, bg = "white")
+ggsave(file.path(path_name, "FigS6_Control_treatment_multiplot_turnover.png"), turnover_multiplot, dpi = 600, units = "in", width = 11, height = 4.5, bg = "white")
 ```
