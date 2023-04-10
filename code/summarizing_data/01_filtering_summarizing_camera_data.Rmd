@@ -196,9 +196,9 @@ data_for_metanetwork <- data03 %>%
 
 ## Step 6: Filter data for analysis of sampling method
 
-Want pollen and camera networks from the same time period, 'pre' only.
+Want pollen and camera networks from the same time period, 'pre' only. Easiest just to use experiment data, subset to 'pre' period (will build pre-post interaction networks based on the experiment dataset)
 ```{r step6}
-data_for_sampling_method <- data04 %>%
+data_for_sampling_method <- data_for_experiment %>%
   filter(exp_phase == "pre")
 ```
 
