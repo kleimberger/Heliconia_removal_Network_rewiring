@@ -410,35 +410,49 @@ data_pollen &lt;- read.csv(&quot;../../data/export/for_analysis/Pollen_data_summ
 
 #Make sure column names match up
 head(data_cameras)</code></pre>
-<pre><code>##   year patch control_treatment exp_phase    bird_species          plant_species
-## 1 2016    10         treatment      post Amazilia decora     Musa x paradisiaca
-## 2 2016    10         treatment       pre Amazilia decora     Musa x paradisiaca
-## 3 2016    10         treatment      post Amazilia decora Centropogon granulosus
-## 4 2016    10         treatment       pre Amazilia decora Centropogon granulosus
-## 5 2016    10         treatment      post Amazilia decora        Costus barbatus
-## 6 2016    10         treatment       pre Amazilia decora        Costus barbatus
-##   interaction_frequency sightings    hours     bird_common_name sampling_method
-## 1                     0         0 23.56667 Charming Hummingbird      visitation
-## 2                     0         0 35.88333 Charming Hummingbird      visitation
-## 3                     0         0 70.33333 Charming Hummingbird      visitation
-## 4                     0         0 66.60000 Charming Hummingbird      visitation
-## 5                     0         0 65.21667 Charming Hummingbird      visitation
-## 6                     0         0 59.51667 Charming Hummingbird      visitation</code></pre>
+<pre><code>##   year patch control_treatment exp_phase            bird_species
+## 1 2017    30           control       pre         Amazilia decora
+## 2 2016    49           control      post    Thalurania colombica
+## 3 2017   201         treatment       pre    Thalurania colombica
+## 4 2017   201         treatment      post    Thalurania colombica
+## 5 2017   201         treatment       pre    Thalurania colombica
+## 6 2016    10         treatment       pre Chlorostilbon assimilis
+##               plant_species interaction_frequency sightings    hours
+## 1    Centropogon granulosus                   281         2 71.28333
+## 2      Palicourea padifolia                   849         2 23.56667
+## 3 Aphelandra golfodulcensis                   339         1 29.53333
+## 4      Palicourea padifolia                   987         7 70.93333
+## 5      Palicourea padifolia                   677         4 59.05000
+## 6       Syzygium malaccense                   979         4 40.85000
+##       bird_common_name sampling_method
+## 1 Charming Hummingbird      visitation
+## 2    Crowned Woodnymph      visitation
+## 3    Crowned Woodnymph      visitation
+## 4    Crowned Woodnymph      visitation
+## 5    Crowned Woodnymph      visitation
+## 6       Garden Emerald      visitation</code></pre>
 <pre class="r"><code>head(data_pollen)</code></pre>
-<pre><code>##   year patch control_treatment exp_phase    bird_species plant_species
-## 1 2016    10         treatment       pre Phaethornis guy   ERYTHRINA01
-## 2 2016    10         treatment       pre Phaethornis guy   HELICONIA01
-## 3 2016    10         treatment       pre Phaethornis guy      MANZAGUA
-## 4 2016    10         treatment       pre Phaethornis guy          MARA
-## 5 2016    10         treatment       pre Phaethornis guy      PLAS-ROJ
-## 6 2016    10         treatment       pre Phaethornis guy       ROJ-PEL
-##   interaction_frequency sampling_method
-## 1                     4          pollen
-## 2                     4          pollen
-## 3                     2          pollen
-## 4                     1          pollen
-## 5                     1          pollen
-## 6                     1          pollen</code></pre>
+<pre><code>##   year patch control_treatment exp_phase plant_species interaction_frequency
+## 1 2016    10         treatment       pre   ERYTHRINA01                     4
+## 2 2016    10         treatment       pre   HELICONIA01                     4
+## 3 2016    10         treatment       pre      MANZAGUA                     2
+## 4 2016    10         treatment       pre          MARA                     1
+## 5 2016    10         treatment       pre      PLAS-ROJ                     1
+## 6 2016    10         treatment       pre       ROJ-PEL                     1
+##      bird_species plant_name_family plant_name_genus plant_name_species
+## 1 Phaethornis guy          FABACEAE        ERYTHRINA               &lt;NA&gt;
+## 2 Phaethornis guy     HELICONIACEAE        HELICONIA               &lt;NA&gt;
+## 3 Phaethornis guy         MYTRACEAE         SYZYGIUM         MALACCENSE
+## 4 Phaethornis guy       MARANTACEAE         CALATHEA        CROTALIFERA
+## 5 Phaethornis guy   MELASTOMATACEAE           BLAKEA           GRACILIS
+## 6 Phaethornis guy      GESNERIACEAE      ALLOPLECTUS         TETRAGONUS
+##   sampling_method
+## 1          pollen
+## 2          pollen
+## 3          pollen
+## 4          pollen
+## 5          pollen
+## 6          pollen</code></pre>
 <pre class="r"><code>#Combine data
 network_data &lt;- data_cameras %&gt;%
   bind_rows(data_pollen) %&gt;%
@@ -585,6 +599,7 @@ unpaired &lt;- specialization_results_for_analysis %&gt;%
 #Flag unpaired networks
 specialization_results_for_analysis &lt;- specialization_results_for_analysis %&gt;%
   left_join(unpaired) %&gt;%
+  mutate(unpaired = ifelse(is.na(unpaired), 0, unpaired)) %&gt;%
   select(bird_group, sampling_method, year, patch, control_treatment, exp_phase, unpaired, everything())</code></pre>
 </div>
 <div id="step-4-calculate-network-level-interaction-turnover-aka-dissimilarity-aka-pre-to-post-beta-diversity-and-its-additive-components" class="section level2">

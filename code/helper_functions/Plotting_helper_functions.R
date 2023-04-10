@@ -108,7 +108,7 @@ make_control_vs_treatment_plot <- function(emmeans_df, yvar, ymax){
 ###########################################################
 #Will need to customize axes, etc. separately, but this will make the basic plot
 #estimate_name = name of the column that has the point estimate (e.g., odds.ratio, ratio, etc.)
-make_contrast_plot <- function(contrasts_df, xvar, shading = "none"){
+make_contrast_plot <- function(contrasts_df, xvar, shading = "none", text_size, title_size, point_size, line_size){
   
   legend_text_labels <- c(expression("All species"), expression(paste(italic("Heliconia "), "specialists", sep = "")))
   
@@ -138,14 +138,19 @@ make_contrast_plot <- function(contrasts_df, xvar, shading = "none"){
   }
   
   plot <- plot +
-      geom_point(position = position_dodge(.5), size = 3) +
-      geom_errorbar(position = position_dodge(.5), aes(ymax = upper.CL, ymin = lower.CL), width = 0.25, linewidth = 1) + # error bars show 95% confidence intervals
-      geom_hline(yintercept = 1, color = "black", linetype = "dashed", alpha = 0.8) + # add a line at 1 (no effect)
-      theme_bw(base_size = 18) +
+      geom_point(position = position_dodge(.5), size = point_size) +
+      geom_errorbar(position = position_dodge(.5), aes(ymax = upper.CL, ymin = lower.CL), width = 0.25, linewidth = line_size) + # error bars show 95% confidence intervals
+      geom_hline(yintercept = 1, color = "black", linetype = "dashed", alpha = 0.8, linewidth = line_size) + # add a line at 1 (no effect)
+      theme_bw(base_size = text_size) +
       scale_shape_manual(values = c(16, 17), labels = legend_text_labels, limits = c("all_spp", "greh_visa")) +
-      theme(legend.position = "top", legend.justification = "center", legend.text = element_text(size = 18), legend.title = element_text(size = 18), axis.text = element_text(size = 18),
-            plot.title = element_text(hjust = 0.5),
-            panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+      theme(panel.grid.major = element_blank(),
+            panel.grid.minor = element_blank(),
+            legend.position = "bottom",
+            legend.justification = "center",
+            legend.text = element_text(size = text_size),
+            legend.title = element_text(size = text_size),
+            axis.title = element_text(size = text_size),
+            axis.text = element_text(size = text_size)) +
       labs(x = "", y = "Experimental effect", shape = "Bird group")
     
   return(plot)

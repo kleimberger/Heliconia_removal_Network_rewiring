@@ -243,6 +243,7 @@ unpaired <- specialization_results_for_analysis %>%
 #Flag unpaired networks
 specialization_results_for_analysis <- specialization_results_for_analysis %>%
   left_join(unpaired) %>%
+  mutate(unpaired = ifelse(is.na(unpaired), 0, unpaired)) %>%
   select(bird_group, sampling_method, year, patch, control_treatment, exp_phase, unpaired, everything())
 ```
 
