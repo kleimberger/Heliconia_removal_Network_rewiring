@@ -23,6 +23,8 @@ knit: (function(inputFile, encoding) {
 - What plant species were in pots (we brought these species in to create a 'floral array' at each station)
 
 ```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+
 library(tidyr)
 library(dplyr)
 library(ggplot2)
@@ -71,7 +73,7 @@ Cameras were positioned at flowering plants and programmed to record for 12 hour
 - Not all data were included in analysis. In a previous script (01), data were filtered to EXCLUDE videos from the (1) afternoon of covering day (in treatment replicates), (2) days with no flowers, (3) non-priority dates, and (4) cameras that didn't have video effort (or visible flowers) pre and post.
 
 Here, I first to summarize to the camera level, rather than across plant species, to avoid inflating the video hours when >1 plant species in frame. When >1 plant species was present per camera, summarizing to species could lead to double/triple/quadruple counting of video hours.
-```{r step2a, message = FALSE}
+```{r step2a}
 #Summary at camera level
 hours_per_camera_date <- data_experiment %>%
   distinct(year, patch, control_treatment, camera_num, date_video, exp_phase, file_id, video_length) %>%
@@ -81,7 +83,7 @@ hours_per_camera_date <- data_experiment %>%
 ```
 
 **Total effort**
-```{r step2b, message = FALSE}
+```{r step2b}
 #Number of hours, summarized across cameras
 hours_total <- hours_per_camera_date %>%
   summarise(video_hours = sum(video_hours)) %>%
@@ -89,7 +91,7 @@ hours_total <- hours_per_camera_date %>%
 
 hours_total
 
-#How many total sightings occurred with confirmed visits? "Sighting" = hummingbird appearing in the camera frame
+#How many total sightings? "Sighting" = hummingbird appearing in the camera frame, though I use the term "visit" in the paper
 videos_with_sightings <- data_experiment %>%
   filter(sightings_yes_or_no == "Y" & visit_type != "none")
 
@@ -100,7 +102,7 @@ videos_with_sightings <- data_experiment %>%
 ```
 
 **Effort per experimental period**
-```{r step2d, message = FALSE}
+```{r step2d}
 #pp = pre/post
 hours_pp <- hours_per_camera_date %>%
   group_by(year, patch, control_treatment, exp_phase) %>%
@@ -131,7 +133,7 @@ hours_pp_sum
 **Effort per replicate (control vs. treatment)**
 
 "Replicate" = each year + site combination. Due to switching treatments between years, a given site might be a control replicate or a treatment replicate (depending on the year)
-```{r step2e, message = FALSE}
+```{r step2e}
 #Total hours per replicate (across experimental periods, i.e., pre and post combined)
 hours_per_replicate <- hours_per_camera_date %>%
   group_by(year, patch, control_treatment) %>%
@@ -162,14 +164,14 @@ I can either calculate these numbers from:
 
 1. The dataset of hummingbird sightings that will be used in analysis (i.e., the one I've been working with so far)
 
-OR 
+-OR- 
 
 2. The dataset of camera locations (data recorded during camera installation)
 
-The first option is more conservative, because not all cameras that were set up yielded usable data. For example, perhaps the focal plant had no flowers or data were unavailable for both experimental periods, etc. However, in the methods section, it might be a bit more natural to say "We installed X cameras per replicate" rather than "We obtained usable data from X cameras per replicate".
+The first option is more conservative, because not all cameras that were set up yielded usable data. For example, perhaps the focal plant had no flowers or data were unavailable for both experimental periods, etc. **DECISION** Report summary stats associated with conservative option.
 
 **Effort summary from sighting dataset (final, usable data)**
-```{r step3a, message = FALSE}
+```{r step3a}
 #Number of cameras per replicate (there can be multiple plant species per camera)
 cameras_per_replicate = data_experiment %>%
   distinct(year, patch, control_treatment, camera_num) %>%
@@ -180,6 +182,8 @@ cameras_per_replicate = data_experiment %>%
 
 cameras_per_replicate_sum = cameras_per_replicate %>%
     calculate_basic_summary_stats(data = ., variable = num_cameras)
+
+cameras_per_replicate_sum
 
 #How much does the number of cameras/site vary between control and treatment replicates?
 cameras_per_replicate %>%
@@ -200,6 +204,8 @@ species_per_replicate_sum = data_experiment %>%
   ungroup() %>%
   filter(!is.na(patch)) %>%
   calculate_basic_summary_stats(data = ., variable = num_species)
+
+species_per_replicate_sum
   
 #Finally, just out of curiosity...which plant species are present most reliably across the different replicates?
 replicates_per_species <- data_experiment %>%
@@ -212,51 +218,6 @@ replicates_per_species <- data_experiment %>%
 head(replicates_per_species)
 ```
 
-**Effort summary from camera setup dataset (record of cameras installed)**
-```{r step3b, message = FALSE}
-#Number of cameras per replicate (there can be multiple plant species per camera)
-cameras_per_replicate_setup = camera_locations %>%
-  distinct(year, patch, control_treatment, camera_number_video_data) %>%
-  group_by(year, patch, control_treatment) %>%
-  summarise(num_cameras = n()) %>%
-  ungroup() %>%
-  filter(!is.na(patch))
-
-cameras_per_replicate_setup_sum <- cameras_per_replicate_setup %>%
-  calculate_basic_summary_stats(data = ., variable = num_cameras)
-
-#Number of plant species per replicate
-species_per_replicate_setup_sum = camera_locations %>%
-  distinct(year, patch, control_treatment, plant_species) %>%
-  group_by(year, patch, control_treatment) %>%
-  summarise(num_species = n()) %>%
-  ungroup() %>%
-  filter(!is.na(patch)) %>%
-  calculate_basic_summary_stats(data = ., variable = num_species)
-  
-#Number of plant species that were in pots (i.e., brought in to be part of focal array). This data was only recorded in 2017-2018
-potted_plants_per_replicate_setup_sum <- camera_locations %>%
-  filter(potted_y_n == "Y") %>%
-  distinct(year, patch, control_treatment, camera_number_video_data) %>%
-  group_by(year, patch, control_treatment) %>%
-  summarise(num_plants = n()) %>%
-  ungroup() %>%
-  calculate_basic_summary_stats(data = ., variable = num_plants)
-
-potted_plants_per_replicate_setup_sum
-```
-
-**Compare methods**
-```{r step3c, message = FALSE}
-cameras_per_replicate_sum
-cameras_per_replicate_setup_sum
-
-species_per_replicate_sum
-species_per_replicate_setup_sum
-```
-
-*As expected, more cameras were set up than yielded usable data. Results are similar for number of plant species as well.*
-
 ## Step 4: Calculate details of camera spatial arrangement
 
 - Percent of cameras at stations
@@ -264,7 +225,15 @@ species_per_replicate_setup_sum
 
 **Calculate percentage of cameras at stations**
 ```{r step4a, message = FALSE}
-#Note: these data might be a bit noisy, as I'm not sure how consistent field techs were in determining whether plant was 'at station' or not (i.e., estimating how far from focal Heliconia plant it was and recorded it as being 'at station' or not)
+#Note: these data might be a bit noisy, as I'm not sure how consistent we were in determining whether plant was 'at station' or not (i.e., estimating how far from focal Heliconia plant it was and recorded it as being 'at station' or not)
+#Number of cameras per replicate (there can be multiple plant species per camera)
+cameras_per_replicate_setup = camera_locations %>%
+  distinct(year, patch, control_treatment, camera_number_video_data) %>% 
+  group_by(year, patch, control_treatment) %>%
+  summarise(num_cameras = n()) %>%
+  ungroup() %>%
+  filter(!is.na(patch))
+
 cameras_per_replicate_station_setup = camera_locations %>%
   filter(station == "1" | station == "2") %>%
   distinct(year, patch, control_treatment, camera_number_video_data) %>%
