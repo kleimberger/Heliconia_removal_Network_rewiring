@@ -327,15 +327,17 @@ Interaction frequency = number of times a hummingbird carried the pollen of each
 ```{r step7a, message = FALSE}
 #Interaction frequency = number of times a hummingbird carried the pollen of each plant species, i.e., number of slides containing a given pollen morphotype
 frequencies_for_pp_networks <- data_for_experiment %>%
-  group_by(year, patch, control_treatment, exp_phase, bird_species, bird_scientific_name, pollen_morphotype) %>%
+  group_by(year, patch, control_treatment, exp_phase, bird_species, pollen_morphotype, bird_scientific_name, plant_name_family, plant_name_genus, plant_name_species) %>%
   summarise(num_slides = n()) %>% 
-  ungroup()
+  ungroup() %>%
+  select(year:pollen_morphotype, num_slides, everything())
 
 #This is similar to summary for experiment...EXCEPT that it is not summarized to level of pre/post and excludes data from 'post' period of treatment sites. This is the "meta-network", i.e., summary network of sub-sampled sites/networks
 frequencies_for_metanetwork <- data_for_normal_visitation %>%
-  group_by(bird_species, bird_scientific_name, pollen_morphotype) %>%
+  group_by(bird_species, pollen_morphotype, bird_scientific_name, plant_name_family, plant_name_genus, plant_name_species) %>%
   summarise(num_slides = n()) %>%
-  ungroup()
+  ungroup() %>%
+  select(bird_species:pollen_morphotype, num_slides, everything())
 ```
 
 ```{r, include = FALSE}
@@ -365,7 +367,7 @@ morphotypes_per_slide <- data_for_experiment %>%
   summarise(num_morphotypes = n()) %>%
   ungroup() %>%
   arrange(num_morphotypes)
-
+  
 max(morphotypes_per_slide$num_morphotypes)
 #Max of 8 morphotypes per slide, including unknown morphotypes
 

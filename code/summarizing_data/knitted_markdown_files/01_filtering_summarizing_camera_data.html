@@ -603,14 +603,16 @@ sighting_rates_for_pp_networks = data_for_experiment %&gt;%
   left_join(bird_names) %&gt;%
   left_join(plant_names) %&gt;%
   select(-flowers, -subset) %&gt;%
-  select(year, patch, control_treatment, exp_phase, bird_species, plant_species, everything())
+  select(year, patch, control_treatment, exp_phase, bird_species, plant_species, everything()) %&gt;%
+  filter(sightings &gt; 0) #Remove empty rows
 
 ## For meta-network, first filter to data from &#39;pre&#39; period, which are not affected by experiment. Could probably also include data &#39;post&#39; period of control sites, but just looking at pre period for simplicity
 sighting_rates_for_metanetwork = data_for_metanetwork %&gt;%
   calculate_sighting_rates(data = ., level_org = &quot;plant_species_across_sites&quot;, level_time = &quot;all&quot;, level_bird = &quot;camera_spp_separate&quot;, sightings = &quot;with_visit&quot;, include_unknown_spp = FALSE) %&gt;%
   left_join(bird_names) %&gt;%
   left_join(plant_names) %&gt;%
-  select(-flowers, -subset)</code></pre>
+  select(-flowers, -subset) %&gt;%
+  filter(sightings &gt; 0) #Remove empty rows</code></pre>
 </div>
 <div id="step-8-summarize-visitors-to-heliconia-for-general-results" class="section level2">
 <h2>Step 8: Summarize visitors to <em>Heliconia</em> (for general

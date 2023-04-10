@@ -236,14 +236,16 @@ sighting_rates_for_pp_networks = data_for_experiment %>%
   left_join(bird_names) %>%
   left_join(plant_names) %>%
   select(-flowers, -subset) %>%
-  select(year, patch, control_treatment, exp_phase, bird_species, plant_species, everything())
+  select(year, patch, control_treatment, exp_phase, bird_species, plant_species, everything()) %>%
+  filter(sightings > 0) #Remove empty rows
 
 ## For meta-network, first filter to data from 'pre' period, which are not affected by experiment. Could probably also include data 'post' period of control sites, but just looking at pre period for simplicity
 sighting_rates_for_metanetwork = data_for_metanetwork %>%
   calculate_sighting_rates(data = ., level_org = "plant_species_across_sites", level_time = "all", level_bird = "camera_spp_separate", sightings = "with_visit", include_unknown_spp = FALSE) %>%
   left_join(bird_names) %>%
   left_join(plant_names) %>%
-  select(-flowers, -subset)
+  select(-flowers, -subset) %>%
+  filter(sightings > 0) #Remove empty rows
 ```
 
 ## Step 8: Summarize visitors to *Heliconia* (for general results)
