@@ -966,7 +966,7 @@ contrast_plot_individual &lt;- contrasts_of_contrasts_df %&gt;%
     annotate(&quot;text&quot;,  x = 3.5, y = 0.4, size = size*annotate_scale, angle = 0, color = &quot;black&quot;, label = c(&quot;Pre-to-post \nincrease in specialization \nrelative to controls&quot;))
 
 ggview(contrast_plot_individual, units = &quot;mm&quot;, width = column2x*0.7, height = column2x*0.5)
-ggsave(file.path(path_name, &quot;Fig4.png&quot;), contrast_plot_individual, width = column2x*0.7, height = column2x*0.5, units = &quot;mm&quot;, bg = &quot;white&quot;, device = &quot;tiff&quot;, dpi = 600)</code></pre>
+ggsave(file.path(path_name, &quot;Fig4.png&quot;), contrast_plot_individual, width = column2x*0.7, height = column2x*0.5, units = &quot;mm&quot;, bg = &quot;white&quot;, device = &quot;tiff&quot;, dpi = 300)</code></pre>
 <p>Fig. 6: Interaction turnover</p>
 <pre class="r"><code>#INTERACTION TURNOVER
 contrast_plot_turnover &lt;- contrasts_of_contrasts_df %&gt;%
@@ -988,7 +988,7 @@ contrast_plot_turnover &lt;- contrasts_of_contrasts_df %&gt;%
     annotate(&quot;text&quot;,  x = 4.8, y = 0.4, size = size*annotate_scale, angle = 0, color = &quot;black&quot;, label = c(&quot;Decrease in turnover \nrelative to controls&quot;))
 
 ggview(contrast_plot_turnover, units = &quot;mm&quot;, width = column2x*0.7, height = column2x*0.5)
-ggsave(file.path(path_name, &quot;Fig6.png&quot;), contrast_plot_turnover, width = column2x*0.7, height = column2x*0.5, units = &quot;mm&quot;, bg = &quot;white&quot;, device = &quot;tiff&quot;, dpi = 600)</code></pre>
+ggsave(file.path(path_name, &quot;Fig6.png&quot;), contrast_plot_turnover, width = column2x*0.7, height = column2x*0.5, units = &quot;mm&quot;, bg = &quot;white&quot;, device = &quot;tiff&quot;, dpi = 300)</code></pre>
 <p>Fig. 5: Species and network-level specialization</p>
 <pre class="r"><code>h2_label &lt;- c(expression(paste(italic(H[2])*&quot;′&quot;)))
 d_label &lt;-  c(expression(paste(&quot;mean &quot;*italic(d)*&quot;′&quot;)))
@@ -1081,7 +1081,7 @@ ggview(contrast_multiplot_species_network, units = &quot;mm&quot;, width = colum
 contrast_multiplot_species_network_with_legend &lt;- annotate_figure(contrast_multiplot_species_network, bottom = legend)
 ggview(contrast_multiplot_species_network_with_legend, units = &quot;mm&quot;, width = column2x, height = column2x)
 
-ggsave(file.path(path_name, &quot;Fig5.png&quot;), contrast_multiplot_species_network_with_legend, width = column2x, height = column2x, units = &quot;mm&quot;, bg = &quot;white&quot;, device = &quot;tiff&quot;, dpi = 600)</code></pre>
+ggsave(file.path(path_name, &quot;Fig5.png&quot;), contrast_multiplot_species_network_with_legend, width = column2x, height = column2x, units = &quot;mm&quot;, bg = &quot;white&quot;, device = &quot;tiff&quot;, dpi = 300)</code></pre>
 <p><strong>Interaction plots</strong> (specialization metrics only)</p>
 <p>These plots are just for the Supporting information.</p>
 <pre class="r"><code>#Make a bunch of plots, then divide up into reasonablly sized figures in next steps

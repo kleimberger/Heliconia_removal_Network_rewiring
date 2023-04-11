@@ -668,7 +668,7 @@ contrast_plot_individual <- contrasts_of_contrasts_df %>%
     annotate("text",  x = 3.5, y = 0.4, size = size*annotate_scale, angle = 0, color = "black", label = c("Pre-to-post \nincrease in specialization \nrelative to controls"))
 
 ggview(contrast_plot_individual, units = "mm", width = column2x*0.7, height = column2x*0.5)
-ggsave(file.path(path_name, "Fig4.png"), contrast_plot_individual, width = column2x*0.7, height = column2x*0.5, units = "mm", bg = "white", device = "tiff", dpi = 600)
+ggsave(file.path(path_name, "Fig4.png"), contrast_plot_individual, width = column2x*0.7, height = column2x*0.5, units = "mm", bg = "white", device = "tiff", dpi = 300)
 ```
 
 Fig. 6: Interaction turnover
@@ -693,7 +693,7 @@ contrast_plot_turnover <- contrasts_of_contrasts_df %>%
     annotate("text",  x = 4.8, y = 0.4, size = size*annotate_scale, angle = 0, color = "black", label = c("Decrease in turnover \nrelative to controls"))
 
 ggview(contrast_plot_turnover, units = "mm", width = column2x*0.7, height = column2x*0.5)
-ggsave(file.path(path_name, "Fig6.png"), contrast_plot_turnover, width = column2x*0.7, height = column2x*0.5, units = "mm", bg = "white", device = "tiff", dpi = 600)
+ggsave(file.path(path_name, "Fig6.png"), contrast_plot_turnover, width = column2x*0.7, height = column2x*0.5, units = "mm", bg = "white", device = "tiff", dpi = 300)
 ```
 
 Fig. 5: Species and network-level specialization
@@ -789,7 +789,7 @@ ggview(contrast_multiplot_species_network, units = "mm", width = column2x, heigh
 contrast_multiplot_species_network_with_legend <- annotate_figure(contrast_multiplot_species_network, bottom = legend)
 ggview(contrast_multiplot_species_network_with_legend, units = "mm", width = column2x, height = column2x)
 
-ggsave(file.path(path_name, "Fig5.png"), contrast_multiplot_species_network_with_legend, width = column2x, height = column2x, units = "mm", bg = "white", device = "tiff", dpi = 600)
+ggsave(file.path(path_name, "Fig5.png"), contrast_multiplot_species_network_with_legend, width = column2x, height = column2x, units = "mm", bg = "white", device = "tiff", dpi = 300)
 ```
 
 **Interaction plots** (specialization metrics only)
