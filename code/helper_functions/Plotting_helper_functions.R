@@ -146,11 +146,11 @@ make_contrast_plot <- function(contrasts_df, xvar, shading = "none", text_size, 
       theme(panel.grid.major = element_blank(),
             panel.grid.minor = element_blank(),
             legend.position = "bottom",
-            legend.justification = "center",
+            legend.justification = "left",
             legend.text = element_text(size = text_size),
             legend.title = element_text(size = text_size),
             axis.title = element_text(size = text_size),
-            axis.text = element_text(size = text_size)) +
+            axis.text = element_text(size = axis_text_size)) +
       labs(x = "", y = "Experimental effect", shape = "Bird group")
     
   return(plot)

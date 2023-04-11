@@ -637,11 +637,13 @@ column1x <- 80 #minimum width
 column2x <- 180 #maximum width
 
 #Sizes for plot elements
-size = 9
-label_size = size
-title_size = size * 1.25
-shape_size = 1.25
-line_width = 0.28
+size = 10
+axis_text_size = size
+title_size = size
+shape_size = 2
+line_width = 0.5
+icon_y_scale <- 1.38
+annotate_scale <- 0.3
 
 path_name <- c("results/analyses_experiment/figures")
 ```
@@ -655,15 +657,15 @@ contrast_plot_individual <- contrasts_of_contrasts_df %>%
   make_contrast_plot(contrasts_df = ., xvar = "subanalysis", shading = "above", text_size = size, title_size = title_size, point_size = shape_size, line_size = line_width) +
     scale_y_continuous(limits = c(0, 3.5), breaks = c(0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5)) +
     coord_cartesian(ylim = c(0, 3.5), xlim = c(1, 2), clip = "off") +
-    labs(title = "Individual specialization\n(pollen morphotypes per bird)") +
+    labs(title = "Individual specialization") +
     theme(plot.title = element_text(hjust = 0.5, size = title_size)) +
     theme(plot.margin = unit(c(8, 48, 1, 1), "mm")) + #(top, right, bottom, left)
-    theme(legend.box.spacing = unit(-5, "mm")) +
-    annotation_custom(rasterGrob(pollen_icon, width = 0.4), xmin = 1, xmax = 2, ymin = 3.5*1.55, ymax = Inf) +
+    theme(legend.box.spacing = unit(-2, "mm")) +
+    annotation_custom(rasterGrob(pollen_icon, width = 0.4), xmin = 1, xmax = 2, ymin = 3.5*icon_y_scale, ymax = Inf) +
     annotate("segment", x = 2.8, xend = 2.8, y = 1.2, yend = 3.5, col = "black", linewidth = line_width*1.5, arrow = arrow(length = unit(0.3, "cm"))) +
     annotate("segment", x = 2.8, xend = 2.8, y = 0.8, yend = 0.0, col = "black", linewidth = line_width*1.5, arrow = arrow(length = unit(0.3, "cm"))) +
-    annotate("text",  x = 3.6, y = 2.25, size = size*0.35, angle = 0, color = "black", label = c("Pre-to-post \ndecrease in specialization \nrelative to controls")) +
-    annotate("text",  x = 3.6, y = 0.4, size = size*0.35, angle = 0, color = "black", label = c("Pre-to-post \nincrease in specialization \nrelative to controls"))
+    annotate("text",  x = 3.6, y = 2.25, size = size*annotate_scale, angle = 0, color = "black", label = c("Pre-to-post \ndecrease in specialization \nrelative to controls")) +
+    annotate("text",  x = 3.6, y = 0.4, size = size*annotate_scale, angle = 0, color = "black", label = c("Pre-to-post \nincrease in specialization \nrelative to controls"))
 
 ggview(contrast_plot_individual, units = "mm", width = column2x*0.66, height = column2x*0.5)
 ggsave(file.path(path_name, "Fig4.png"), contrast_plot_individual, width = column2x*0.66, height = column2x*0.5, units = "mm", bg = "white", device = "tiff", dpi = 600)
@@ -678,27 +680,27 @@ contrast_plot_turnover <- contrasts_of_contrasts_df %>%
   make_contrast_plot(contrasts_df = ., xvar = "yvar", shading = "above", text_size = size, title_size = title_size, point_size = shape_size, line_size = line_width) +
     scale_y_continuous(limits = c(0, 2.5), breaks = c(0, 0.5, 1, 1.5, 2, 2.5)) +
     coord_cartesian(ylim = c(0, 2.5), xlim = c(1, 3), clip = "off") +
-    labs(title = "Interaction turnover\n(network dissimilarity)") +
+    labs(title = "Interaction turnover") +
     theme(plot.title = element_text(hjust = 0.5, size = title_size)) +
     theme(plot.margin = unit(c(8, 48, 1, 1), "mm")) + #(top, right, bottom, left)
-    theme(legend.position = "none") +
-    annotation_custom(rasterGrob(camera_icon, width = 0.3), xmin = 1, xmax = 3, ymin = 2.5*1.55, ymax = Inf) +
+    theme(legend.box.spacing = unit(-2, "mm")) +
+    theme(legend.text = element_text(color = "white"), legend.title = element_text(color = "white"), legend.key = element_rect(fill = "white")) +
+    scale_shape_discrete(guide = guide_legend(override.aes = list(color = "white"))) +
+    annotation_custom(rasterGrob(camera_icon, width = 0.3), xmin = 1, xmax = 3, ymin = 2.5*icon_y_scale, ymax = Inf) +
     annotate("segment", x = 3.9, xend = 3.9, y = 1.2, yend = 2.5, col = "black", linewidth = line_width*1.5, arrow = arrow(length = unit(0.3, "cm"))) +
     annotate("segment", x = 3.9, xend = 3.9, y = 0.8, yend = 0.0, col = "black", linewidth = line_width*1.5, arrow = arrow(length = unit(0.3, "cm"))) +
-    annotate("text",  x = 4.9, y = 1.75, size = size*0.35, angle = 0, color = "black", label = c("Pre-to-post \nincrease in turnover \nrelative to controls")) +
-    annotate("text",  x = 4.9, y = 0.4, size = size*0.35, angle = 0, color = "black", label = c("Pre-to-post \ndecrease in turnover \nrelative to controls"))
+    annotate("text",  x = 4.9, y = 1.75, size = size*annotate_scale, angle = 0, color = "black", label = c("Pre-to-post \nincrease in turnover \nrelative to controls")) +
+    annotate("text",  x = 4.9, y = 0.4, size = size*annotate_scale, angle = 0, color = "black", label = c("Pre-to-post \ndecrease in turnover \nrelative to controls"))
 
 ggview(contrast_plot_turnover, units = "mm", width = column2x*0.66, height = column2x*0.5)
 ggsave(file.path(path_name, "Fig6.png"), contrast_plot_turnover, width = column2x*0.66, height = column2x*0.5, units = "mm", bg = "white", device = "tiff", dpi = 600)
 ```
 
 Fig. 5: Species and network-level specialization
-```{r step7f, fig.width = 14, fig.height = 12}
+```{r step7f}
 h2_label <- c(expression(paste(italic(H[2])*"′")))
 d_label <-  c(expression(paste("mean "*italic(d)*"′")))
 ssi_label <- c("mean SSI")
-
-icon_y_scale <- 1.38
 
 #RIGHT COLUMN: plots with explanatory arrows
 #NETWORK-LEVEL SPECIALIZATION (POLLEN)
@@ -715,11 +717,10 @@ contrast_plot_pollen_network <- contrasts_of_contrasts_df %>%
     annotation_custom(rasterGrob(pollen_icon, width = 0.25), xmin = 0.5, xmax = 1.5, ymin = 4*icon_y_scale, ymax = Inf) +
     annotate("segment", x = 1.72, xend = 1.72, y = 1.2, yend = 4.0, col = "black", linewidth = line_width*1.5, arrow = arrow(length = unit(0.3, "cm"))) +
     annotate("segment", x = 1.72, xend = 1.72, y = 0.8, yend = 0.0, col = "black", linewidth = line_width*1.5, arrow = arrow(length = unit(0.3, "cm"))) +
-    annotate("text",  x = 2.2, y = 2.5, size = size*0.35, angle = 0, color = "black", label = c("Pre-to-post \nincrease in specialization \nrelative to controls")) +
-    annotate("text",  x = 2.2, y = 0.4, size = size*0.35, angle = 0, color = "black", label = c("Pre-to-post \ndecrease in specialization \nrelative to controls"))
+    annotate("text",  x = 2.16, y = 2.5, size = size*annotate_scale, angle = 0, color = "black", label = c("Pre-to-post \nincrease in specialization \nrelative to controls")) +
+    annotate("text",  x = 2.16, y = 0.4, size = size*annotate_scale, angle = 0, color = "black", label = c("Pre-to-post \ndecrease in specialization \nrelative to controls"))
 
-ggview(contrast_plot_pollen_network, units = "mm", width = column2x*0.66, height = column2x*0.5)
-# ggsave(file.path(path_name, "test.png"), contrast_plot_pollen_network, width = column2x*0.66, height = column2x*0.5, units = "mm", bg = "white", device = "tiff", dpi = 600)
+# ggview(contrast_plot_pollen_network, units = "mm", width = column2x*0.66, height = column2x*0.5)
 
 #NETWORK-LEVEL SPECIALIZATION (CAMERA)
 contrast_plot_camera_network <- contrasts_of_contrasts_df %>%
@@ -735,10 +736,10 @@ contrast_plot_camera_network <- contrasts_of_contrasts_df %>%
     annotation_custom(rasterGrob(camera_icon, width = 0.25), xmin = 0.5, xmax = 1.5, ymin = 2*icon_y_scale, ymax = Inf) +
     annotate("segment", x = 1.72, xend = 1.72, y = 1.2, yend = 2.0, col = "black", linewidth = line_width*1.5, arrow = arrow(length = unit(0.3, "cm"))) +
     annotate("segment", x = 1.72, xend = 1.72, y = 0.8, yend = 0.0, col = "black", linewidth = line_width*1.5, arrow = arrow(length = unit(0.3, "cm"))) +
-    annotate("text",  x = 2.2, y = 1.6, size = size*0.35, angle = 0, color = "black", label = c("Pre-to-post \nincrease in specialization \nrelative to controls")) +
-    annotate("text",  x = 2.2, y = 0.4, size = size*0.35, angle = 0, color = "black", label = c("Pre-to-post \ndecrease in specialization \nrelative to controls"))
+    annotate("text",  x = 2.16, y = 1.6, size = size*annotate_scale, angle = 0, color = "black", label = c("Pre-to-post \nincrease in specialization \nrelative to controls")) +
+    annotate("text",  x = 2.16, y = 0.4, size = size*annotate_scale, angle = 0, color = "black", label = c("Pre-to-post \ndecrease in specialization \nrelative to controls"))
 
-ggview(contrast_plot_camera_network, units = "mm", width = column2x*0.66, height = column2x*0.5)
+# ggview(contrast_plot_camera_network, units = "mm", width = column2x*0.66, height = column2x*0.5)
 
 #LEFT COLUMN: plots without explanatory arrows
 #SPECIES-LEVEL SPECIALIZATION (POLLEN)
@@ -754,7 +755,7 @@ contrast_plot_pollen_species <- contrasts_of_contrasts_df %>%
     theme(legend.position = "none") +
     annotation_custom(rasterGrob(pollen_icon, width = 0.25*1.66), xmin = 1, xmax = 2, ymin = 4*icon_y_scale, ymax = Inf) #Multiply by ggarrange widths to make icons the same size
 
-ggview(contrast_plot_pollen_species, units = "mm", width = column2x*0.33, height = column2x*0.5)
+# ggview(contrast_plot_pollen_species, units = "mm", width = column2x*0.33, height = column2x*0.5)
 
 #SPECIES-LEVEL SPECIALIZATION (CAMERA)
 contrast_plot_camera_species <- contrasts_of_contrasts_df %>%
@@ -769,11 +770,11 @@ contrast_plot_camera_species <- contrasts_of_contrasts_df %>%
     theme(legend.position = "none") +
     annotation_custom(rasterGrob(camera_icon, width = 0.25*1.66), xmin = 1, xmax = 2, ymin = 2*icon_y_scale, ymax = Inf) #Multiply by ggarrange widths to make icons the same size
   
-ggview(contrast_plot_camera_species, units = "mm", width = column2x*0.33, height = column2x*0.5)
+# ggview(contrast_plot_camera_species, units = "mm", width = column2x*0.33, height = column2x*0.5)
 
 #COMBINED PLOTS
 #Get legend
-legend <- get_legend(contrast_plot_individual + theme(legend.justification = "left"))
+legend <- get_legend(contrast_plot_individual + theme(legend.justification = "center"))
   
 contrast_multiplot_species_network <- ggarrange(contrast_plot_pollen_species,
                                                 contrast_plot_pollen_network,
@@ -781,12 +782,14 @@ contrast_multiplot_species_network <- ggarrange(contrast_plot_pollen_species,
                                                 contrast_plot_camera_network,
                                                 ncol = 2, nrow = 2, align = "h", labels = c("A", "B", "C", "D"),
                                                 font.label = list(size = 12, face = "plain"),
-                                                widths = c(1, 1.66))
+                                                widths = c(1, 1.7))
 
-contrast_multiplot_species_network_with_legend <- ggarrange(contrast_multiplot_species_network, legend, nrow = 2, heights = c(0.98, 0.02))
+ggview(contrast_multiplot_species_network, units = "mm", width = column2x, height = column2x)
 
-ggview(contrast_multiplot_species_network_with_legend, units = "mm", width = column2x, height = column2x*0.9)
-ggsave(file.path(path_name, "Fig5.png"), contrast_multiplot_species_network_with_legend, width = column2x, height = column2x*0.9, units = "mm", bg = "white", device = "tiff", dpi = 600)
+contrast_multiplot_species_network_with_legend <- annotate_figure(contrast_multiplot_species_network, bottom = legend)
+ggview(contrast_multiplot_species_network_with_legend, units = "mm", width = column2x, height = column2x)
+
+ggsave(file.path(path_name, "Fig5.png"), contrast_multiplot_species_network_with_legend, width = column2x, height = column2x, units = "mm", bg = "white", device = "tiff", dpi = 600)
 ```
 
 **Interaction plots** (specialization metrics only)
