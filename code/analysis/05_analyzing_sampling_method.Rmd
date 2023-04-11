@@ -46,6 +46,7 @@ library(purrr)
 library(ggplot2)
 library(ggpubr)
 library(ggeffects)
+library(ggview)
 
 #Packages for statistical modeling
 library(glmmTMB)
@@ -61,7 +62,7 @@ set.seed(1)
 
 ```{r step1}
 #Data are currently in long format (created in script 04). Will stick with this format for the initial analysis
-data <- read.csv("data/export/for_analysis/Network_specialization_for_analysis.csv") %>%
+data <- read.csv("../../data/export/for_analysis/Network_specialization_for_analysis.csv") %>%
   filter(exp_phase == "pre") %>%
   filter(bird_group == "all_spp") %>%
   select(-unpaired) %>%
@@ -78,9 +79,9 @@ data_long <- data %>%
   pivot_longer(cols = c("pollen", "visitation"), names_to = "sampling_method")
 
 #Functions
-source("code/helper_functions/Calculate_basic_summary_stats.R")
-source("code/helper_functions/Transform_proportion_for_betareg.R")
-source("code/helper_functions/Modeling_helper_functions.R")
+source("../../code/helper_functions/Calculate_basic_summary_stats.R")
+source("../../code/helper_functions/Transform_proportion_for_betareg.R")
+source("../../code/helper_functions/Modeling_helper_functions.R")
 ```
 
 ## Step 2: Are camera networks more specialized than pollen networks?
@@ -378,7 +379,7 @@ make_specialization_plot <- function(emmeans_data, yvar){
             mutate(sampling_method = factor(sampling_method, levels = c("pollen", "visitation"), labels = c("Pollen", "Camera"))) %>%
             ggplot(data = ., aes(x = sampling_method, y = estimate)) + 
               geom_point(aes(x = sampling_method, y = estimate), position = position_dodge(width = 0.25), size = 4, shape = 16) +
-              geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), position = position_dodge(width = 0.25), width = 0.0, size = 1) +
+              geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), position = position_dodge(width = 0.25), width = 0.0, linewidth = 1) +
               theme_bw(base_size = 20) +
               theme(legend.position = "none",
                     legend.direction = "horizontal",
@@ -414,7 +415,7 @@ make_correlation_plot <- function(ggeffects, data, yvar){
     mutate(outlier = ifelse(yvar == "species.specificity.index" & year_patch == "2018_60", "yes", "no"))
   
   plot <- ggplot(data = ggeffects, aes(x = x, y = predicted)) + 
-    geom_line(size = 0.5, lty = "dashed") +
+    geom_line(linewidth = 0.5, lty = "dashed") +
     geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.25) +
     geom_point(data = data, aes(x = visitation_value_transform, y = pollen_value_transform, shape = outlier)) +
     theme_bw(base_size = 20) +
@@ -450,11 +451,11 @@ ggview(results_multiplot, width = 8, height = 11, unit = "in")
 ## Step 6: Export results
 ```{r step6}
 #Q1 + Q2
-write.csv(results_tidy_confint, "results/analyses_sampling_method/tables/Sampling_method_results_summary_tables.csv", row.names = FALSE) #model summaries
-ggsave("results/analyses_sampling_method/figures/Sampling_method_results_multiplot.png", results_multiplot, dpi = 600, units = "in", width = 8, height = 11)
+write.csv(results_tidy_confint, "../../results/analyses_sampling_method/tables/Sampling_method_results_summary_tables.csv", row.names = FALSE) #model summaries
+ggsave("../../results/analyses_sampling_method/figures/Sampling_method_results_multiplot.png", results_multiplot, dpi = 600, units = "in", width = 8, height = 11)
 
 #Q1
-write.csv(specialization_emmeans_df, "results/analyses_sampling_method/tables/Sampling_method_results_specialization_emmeans.csv", row.names = FALSE)
-write.csv(specialization_contrasts_df, "results/analyses_sampling_method/tables/Sampling_method_results_specialization_contrasts.csv", row.names = FALSE) 
-ggsave("results/analyses_sampling_method/figures/Sampling_method_specialization_density_plot.png", specialization_density_plot, dpi = 600, units = "in", width = 9, height = 5)
+write.csv(specialization_emmeans_df, "../../results/analyses_sampling_method/tables/Sampling_method_results_specialization_emmeans.csv", row.names = FALSE)
+write.csv(specialization_contrasts_df, "../../results/analyses_sampling_method/tables/Sampling_method_results_specialization_contrasts.csv", row.names = FALSE) 
+ggsave("../../results/analyses_sampling_method/figures/Sampling_method_specialization_density_plot.png", specialization_density_plot, dpi = 600, units = "in", width = 9, height = 5)
 ```

@@ -92,10 +92,10 @@ library(ggview)
 
 **Custom functions**
 ```{r step1a}
-source("code/helper_functions/Transform_proportion_for_betareg.R")
-source("code/helper_functions/Modeling_helper_functions.R")
-source("code/helper_functions/Plotting_helper_functions.R")
-source("code/helper_functions/Extract_data_from_safely_and_quietly_lists.R")
+source("../../code/helper_functions/Transform_proportion_for_betareg.R")
+source("../../code/helper_functions/Modeling_helper_functions.R")
+source("../../code/helper_functions/Plotting_helper_functions.R")
+source("../../code/helper_functions/Extract_data_from_safely_and_quietly_lists.R")
 ```
 
 Network metrics and pollen richness (# morphotypes/bird) have already been caculated in earlier sctipts
@@ -105,7 +105,7 @@ Network metrics and pollen richness (# morphotypes/bird) have already been cacul
 #1. Get data
 #2. Remove replicates than don't have a complete pre-post pair (column indicating this added in earlier step)
 #3. Remove highly influential points (2016_60, 2018_60) - both of these pollen networks have compartments of species entirely unconnected to rest of network
-specialization_network_data <- read.csv("data/export/for_analysis/Network_specialization_for_analysis.csv") %>%
+specialization_network_data <- read.csv("../../data/export/for_analysis/Network_specialization_for_analysis.csv") %>%
   mutate(year_patch = paste(year, patch, sep = "_")) %>%
   filter(unpaired == 0) %>%
   filter(!(sampling_method == "pollen" & year_patch == "2016_60")) %>%
@@ -117,7 +117,7 @@ specialization_network_data <- read.csv("data/export/for_analysis/Network_specia
 **Get data for individual specialization** (i.e., # pollen morphotypes/hummingbird, pollen only)
 ```{r step1c}
 #1. Get data
-specialization_individual_data <- read.csv("data/export/for_analysis/Individual_specialization_for_analysis.csv") %>%
+specialization_individual_data <- read.csv("../../data/export/for_analysis/Individual_specialization_for_analysis.csv") %>%
   mutate(year_patch = paste(year, patch, sep = "_"))
 
 #2. Remove replicates that don't have a complete pre-post pair
@@ -149,7 +149,7 @@ specialization_individual_data <- specialization_individual_data %>%
 #2. Filter to visitation data, not pollen networks
 #3. Remove outliers for sampling completeness identified in previous script; sampling completeness varies pre-to-post for these replicates
 #4. Convert to long-form, rather than having one column per metric
-turnover_data <- read.csv("data/export/for_analysis/Network_dissimilarity_for_analysis.csv") %>%
+turnover_data <- read.csv("../../data/export/for_analysis/Network_dissimilarity_for_analysis.csv") %>%
   mutate(year_patch = paste(year, patch, sep = "_")) %>%
   filter(sampling_method == "visitation") %>%
   filter(year_patch != "2017_130") %>%
@@ -425,6 +425,7 @@ assumption_checks <- models %>%
 #Export diagnostic plots because they load very slowly in RStudio
 path_name <- c("../../results/analyses_experiment/assumption_checks")
 walk2(assumption_checks$plotname1, assumption_checks$re_plot, ~ggsave(filename = .x, plot = .y, path = path_name, height = 11.5, width = 15, units = "in", bg = "white"))
+walk2(assumption_checks$plotname2, assumption_checks$dharma_plot, ~ggsave(filename = .x, plot = .y, path = path_name, height = 11.5, width = 15, units = "in", bg = "white"))
 walk2(assumption_checks$plotname3, assumption_checks$dharma_xvar_plot, ~ggsave(filename = .x, plot = .y, path = path_name, height = 11.5, width = 15, units = "in"))
 
 #Remove problematic plot before trying to export DHARMa plots
@@ -623,8 +624,8 @@ There are two ways that I like to visualize the interaction term of interest
 
 **Get pollen and camera icons for plots**
 ```{r step7a}
-camera_icon <-  png::readPNG("code/analysis/camera.png")
-pollen_icon <-  png::readPNG("code/analysis/pollen.png")
+camera_icon <-  png::readPNG("../../code/analysis/camera.png")
+pollen_icon <-  png::readPNG("../../code/analysis/pollen.png")
 ```
 
 **Contrast plots** (specialization metrics + interaction turnover)
@@ -638,14 +639,13 @@ column2x <- 180 #maximum width
 
 #Sizes for plot elements
 size = 10
-axis_text_size = size
 title_size = size
 shape_size = 2
 line_width = 0.5
 icon_y_scale <- 1.38
 annotate_scale <- 0.33
 
-path_name <- c("results/analyses_experiment/figures")
+path_name <- c("../../results/analyses_experiment/figures")
 ```
 
 Fig. 4: Individual specialization
@@ -689,8 +689,8 @@ contrast_plot_turnover <- contrasts_of_contrasts_df %>%
     annotation_custom(rasterGrob(camera_icon, width = 0.3), xmin = 1, xmax = 3, ymin = 2.5*icon_y_scale, ymax = Inf) +
     annotate("segment", x = 3.9, xend = 3.9, y = 1.2, yend = 2.5, col = "black", linewidth = line_width*1.5, arrow = arrow(length = unit(0.3, "cm"))) +
     annotate("segment", x = 3.9, xend = 3.9, y = 0.8, yend = 0.0, col = "black", linewidth = line_width*1.5, arrow = arrow(length = unit(0.3, "cm"))) +
-    annotate("text",  x = 4.8, y = 1.75, size = size*annotate_scale, angle = 0, color = "black", label = c("Pre-to-post \nincrease in turnover \nrelative to controls")) +
-    annotate("text",  x = 4.8, y = 0.4, size = size*annotate_scale, angle = 0, color = "black", label = c("Pre-to-post \ndecrease in turnover \nrelative to controls"))
+    annotate("text",  x = 4.8, y = 1.75, size = size*annotate_scale, angle = 0, color = "black", label = c("Increase in turnover \nrelative to controls")) +
+    annotate("text",  x = 4.8, y = 0.4, size = size*annotate_scale, angle = 0, color = "black", label = c("Decrease in turnover \nrelative to controls"))
 
 ggview(contrast_plot_turnover, units = "mm", width = column2x*0.7, height = column2x*0.5)
 ggsave(file.path(path_name, "Fig6.png"), contrast_plot_turnover, width = column2x*0.7, height = column2x*0.5, units = "mm", bg = "white", device = "tiff", dpi = 600)
@@ -854,7 +854,7 @@ ggview(turnover_multiplot, units = "in", width = 11, height = 4.5)
 ## Step 8: Export results 
 ```{r step8, message = FALSE, warning = FALSE}
 #SUMMARY TABLES
-path_name <- c("results/analyses_experiment/tables")
+path_name <- c("../../results/analyses_experiment/tables")
 
 write.csv(sample_size, file.path(path_name, "Rewiring_results_sample_size_summary.csv"), row.names = FALSE)
 write.csv(results_tidy_confint, file.path(path_name, "Rewiring_results_summary_tables.csv"), row.names = FALSE)
@@ -863,7 +863,7 @@ write.csv(contrasts_df, file.path(path_name,"Rewiring_results_contrasts.csv"), r
 write.csv(contrasts_of_contrasts_df, file.path(path_name, "Rewiring_results_contrasts_of_contrasts.csv"), row.names = FALSE)
 
 #FIGURES
-path_name <- c("results/analyses_experiment/figures")
+path_name <- c("../../results/analyses_experiment/figures")
 
 #Plots for supporting information
 ggsave(file.path(path_name, "FigS3_Interaction_multiplot_individual.png"), interaction_multiplot_individual, units = "in", width = 9, height = 9, bg = "white", dpi = 600)

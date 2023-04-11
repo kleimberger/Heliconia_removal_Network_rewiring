@@ -5,8 +5,8 @@
 #control pre, control post, treatment pre, treatment post
 make_interaction_plot <- function(emmeans_df, sampling_method, yvar, ymax, add_icon = TRUE){
   
-  camera_icon <-  png::readPNG("code/analysis/camera.png")
-  pollen_icon <-  png::readPNG("code/analysis/pollen.png")
+  camera_icon <-  png::readPNG("../../code/analysis/camera.png")
+  pollen_icon <-  png::readPNG("../../code/analysis/pollen.png")
   
   #Colors and shapes
   colors <- c("#0E0D37", "#BA0022") #blue, red
@@ -150,7 +150,7 @@ make_contrast_plot <- function(contrasts_df, xvar, shading = "none", text_size, 
             legend.text = element_text(size = text_size),
             legend.title = element_text(size = text_size),
             axis.title = element_text(size = text_size),
-            axis.text = element_text(size = axis_text_size)) +
+            axis.text = element_text(size = text_size)) +
       labs(x = "", y = "Experimental effect", shape = "Bird group")
     
   return(plot)
