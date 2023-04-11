@@ -41,6 +41,7 @@ unique(pollen_data$bird_scientific_name) %>% length()
 
 #Create matrix
 pollen_data_wide <- pollen_data %>%
+  arrange(bird_scientific_name) %>%
    pivot_wider(names_from = bird_scientific_name, values_from = num_slides, values_fill = list(num_slides = 0))
 
 pollen_matrix <- data.matrix(pollen_data_wide)[,-1]
@@ -73,6 +74,7 @@ unique(camera_data_with_visits$plant_scientific_name) %>% length()
 
 #Create matrix
 camera_data_wide <- camera_data_with_visits %>%
+  arrange(bird_scientific_name) %>%
   pivot_wider(names_from = bird_scientific_name, values_from = sightings_per_hour, values_fill = list(sightings_per_hour = 0))
 
 camera_matrix <- data.matrix(camera_data_wide)[,-1]
@@ -90,7 +92,6 @@ graphics::par(font = 3)
 #1. Hide all labels except Heliconia by making them white
 #2. Emphasize green hermit and violet sabrewing
 #3. Emphasize Heliconia (highlight in red)
-
 bipartite::plotweb(pollen_matrix, method = "cca", arrow = "no",
                    text.rot = 90, labsize = 2,
                    text.low.col = ifelse(rownames(pollen_matrix) == "Heliconia", "black", "white"),
@@ -136,7 +137,46 @@ dev.off()
 ## Step 4: Combine plots and export
 ```{r}
 network_multiplot <- ggpubr::ggarrange(camera_network, pollen_network, ncol = 1, align = "h")
-
-ggplot2::ggsave("../../results/network_visualizations/metanetworks/Pollen_and_camera_metanetworks_multiplot.png", network_multiplot, width = 10, height = 18, dpi = 600, units = "in", bg = "white")
+ggplot2::ggsave("../../results/network_visualizations/metanetworks/Metanetworks_multiplot.png", network_multiplot, width = 10, height = 18, dpi = 600, units = "in", bg = "white")
 ```
 
+```{r, eval=FALSE, include=FALSE}
+#With hummingbird species alphabetized (method = "normal") instead of having fewest crossings. DECIDED THIS WAS TOO CHAOTIC-LOOKING
+bipartite::plotweb(camera_matrix, method = "normal", arrow = "no",
+                   text.rot = 90, labsize = 2,
+                   text.low.col = ifelse(rownames(camera_matrix) == "Heliconia", "black", "white"),
+                   text.high.col = ifelse(colnames(camera_matrix) == "Phaethornis guy" | colnames(camera_matrix) == "Campylopterus hemileucurus", "black", "grey40"),
+                   y.lim = c(-0.75, 2.75),
+                   x.lim = c(0, 1.75),
+                   col.low = ifelse(rownames(camera_matrix) == "Heliconia", red, "grey10"),
+                   bor.col.low = NA,
+                   col.interaction = t(ifelse(camera_matrix[,] > 0 & rownames(camera_matrix) == "Heliconia", red, "grey80")),
+                   bor.col.interaction = t(ifelse(camera_matrix[,] > 0 & rownames(camera_matrix) == "Heliconia", red, "black")))
+
+camera_network_alpha <- grDevices::recordPlot()
+png("../../results/network_visualizations/metanetworks/Camera_metanetwork_alphabetized.png", width = 12, height = 10, res = 600, units = "in", bg = "white")
+camera_network
+dev.off()
+
+
+#With hummingbird species alphabetized (method = "normal")
+bipartite::plotweb(pollen_matrix, method = "normal", arrow = "no",
+                   text.rot = 90, labsize = 2,
+                   text.low.col = ifelse(rownames(pollen_matrix) == "Heliconia", "black", "white"),
+                   text.high.col = ifelse(colnames(pollen_matrix) == "Phaethornis guy" | colnames(pollen_matrix) == "Campylopterus hemileucurus", "black", "grey40"),
+                   y.lim = c(-0.75, 2.75),
+                   x.lim = c(0, 1.75),
+                   col.low = ifelse(rownames(pollen_matrix) == "Heliconia", red, "grey10"),
+                   bor.col.low = NA,
+                   col.interaction = t(ifelse(pollen_matrix[,] > 0 & rownames(pollen_matrix) == "Heliconia", red, "grey80")),
+                   bor.col.interaction = t(ifelse(pollen_matrix[,] > 0 & rownames(pollen_matrix) == "Heliconia", red, "black")))
+
+pollen_network_alpha <- grDevices::recordPlot()
+png("../../results/network_visualizations/metanetworks/Pollen_metanetwork_alphabetized.png", width = 12, height = 10, res = 600, units = "in", bg = "white")
+pollen_network
+dev.off()
+
+#Combine plots
+network_multiplot_alpha <- ggpubr::ggarrange(camera_network_alpha, pollen_network_alpha, ncol = 1, align = "h")
+ggplot2::ggsave("../../results/network_visualizations/metanetworks/Metanetworks_multiplot_alphabetized.png", network_multiplot_alpha, width = 10, height = 18, dpi = 600, units = "in", bg = "white")
+```
