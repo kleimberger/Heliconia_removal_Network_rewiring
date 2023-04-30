@@ -10,27 +10,25 @@ knit: (function(inputFile, encoding) {
 
 **Goal**
 
-Filter pollen data to remove:
-
-- Samples with no pollen
+Filter pollen data to remove samples with no pollen
 
 Then, subset this dataset into different datasets for different analyses.
 
 1. Experimental dataset
 
-**Purpose:** Investigate hummingbird responses to experimental Heliconia removal, following Before-After-Control-Impact design
+    **Purpose:** Investigate hummingbird responses to experimental Heliconia removal, following Before-After-Control-Impact design
 
-2. 'Normal' (unmanipulated) dataset
+2. Natural (unmanipulated) dataset
 
-**Purpose:** Understand 'normal' visitation patterns in this study system. Use for camera meta-network, which summarizes visitation across all sites and years.
-
-- Does not include data from the 'post' period of treatment replicates; do not want data affected by *Heliconia* removal
+    **Purpose:** Understand natural ('normal') visitation patterns in this study system. Use for camera meta-network, which summarizes visitation across all sites and years.
+    
+    Does not include data from the 'post' period of treatment replicates; do not want data affected by *Heliconia* removal
 
 3. Sampling method dataset
 
-**Purpose:** Analyze how sampling method (pollen vs. camera) affects specialization, using parallel networks collected during the same time and at the same site. Also examine the extent of correlation between pollen and camera approaches.
+    **Purpose:** Analyze how sampling method (pollen vs. camera) affects specialization, using parallel networks collected during the same time and at the same site. Also examine the extent of correlation between pollen and camera approaches.
 
-- Only includes data from 'pre' periods, because want data sampled from the dates ('post' period is not an option because it's affected by *Heliconia* removal)
+    Only includes data from 'pre' periods, because want data sampled from the dates ('post' period is not an option because it's affected by *Heliconia* removal)
 
 ```{r setup, include=FALSE}
 library(dplyr)
