@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7882149.svg)](https://doi.org/10.5281/zenodo.7882149)
+
 # Plant–hummingbird pollination networks exhibit limited rewiring after experimental removal of a locally abundant plant species
 
 Analyses for [network rewiring manuscript](https://www.biorxiv.org/content/10.1101/2022.10.05.511021v1) (third chapter of dissertation)
