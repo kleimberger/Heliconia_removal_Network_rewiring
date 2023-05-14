@@ -2,7 +2,7 @@
 
 # Plant–hummingbird pollination networks exhibit limited rewiring after experimental removal of a locally abundant plant species
 
-Analyses for [network rewiring manuscript](https://www.biorxiv.org/content/10.1101/2022.10.05.511021v1) (third chapter of dissertation)
+Analyses for third chapter of dissertation, published in the [*Journal of Animal Ecology*](https://doi.org/10.1111/1365-2656.13935)
 
 **Question** 
 
